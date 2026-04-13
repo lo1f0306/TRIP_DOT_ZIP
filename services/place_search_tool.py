@@ -4,13 +4,12 @@ from langchain.tools import tool
 from typing import List
 import os
 import requests
-from dotenv import load_dotenv
 from utils.custom_exception import PlaceNotFoundError
-
-load_dotenv()
+from config import Settings
 
 # TODO: 1. 필요한 부분 category(types 매핑)
 # TODO: 2. API에서 가져온 정보가지고 LLM에 전달할 장소 추천 멘트 생성
+places_api_key = Settings.places_api_key
 
 # LLM에게 제공할 Schema
 class PlaceSearchInfo(BaseModel):
@@ -24,8 +23,38 @@ class PlaceSearchInfo(BaseModel):
     constraints: List[str] = Field(default=[], description="특별한 제약사항(예: 채식, 반려동물, 비, 우천)")
     limit: int = Field(default=10, description="추천받을 장소의 최대 개수")
 
-# search_place tool
+# def 
+
 @st.cache_data(ttl=3600)
+def get_places_from_api(destination: str, styles: List[str], constraints: List[str], limit: int):
+    """
+        google place api를 통해 places 정보 호출
+
+    """
+    url = "https://places.googleapis.com/v1/places:searchText"
+    query = f"{destination} {' '.join(styles)} {' '.join(constraints)}"
+    
+    headers = {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": places_api_key,
+        "X-Goog-FieldMask": "places.id,places.displayName,places.location,places.primaryType,places.primaryTypeDisplayName,places.types,places.priceLevel,places.priceRange,places.rating"
+    }
+    
+    payload = {
+        "textQuery": query,
+        "maxResultCount": limit,
+        "languageCode": "ko"
+    }
+
+    response = requests.post(url, json=payload, headers=headers)
+    
+    return {
+        "status_code": response.status_code,
+        "json_data": response.json() if response.status_code == 200 else None,
+        "error_text": response.text if response.status_code != 200 else None
+    }
+
+# search_place tool
 @tool("place_search", args_schema=PlaceSearchInfo)
 def search_place_tool(destination: str, styles: List[str], constraints: List[str], limit: int = 5) -> dict[str, any]:
     """
@@ -36,34 +65,20 @@ def search_place_tool(destination: str, styles: List[str], constraints: List[str
         constraints (List[str])
         limit (int)
     """
-    api_key = os.getenv("GOOGLE_PLACE_API_KEY")
-    print("api_key", api_key)
-
-    url = "https://places.googleapis.com/v1/places:searchText"
-    
-    # 검색쿼리
-    query = f"{destination} {' '.join(styles)} {' '.join(constraints)}"
-    
-    # API Headers (FieldMask 필수★ 까다로움 주의)
-    headers = {
-        "Content-Type": "application/json",
-        "X-Goog-Api-Key": api_key,
-        "X-Goog-FieldMask": "places.id,places.displayName,places.location,places.primaryType,places.primaryTypeDisplayName,places.types,places.priceLevel,places.priceRange,places.rating"
-    }
-    
-    payload = {
-        "textQuery": query,
-        "maxResultCount": limit,
-        "languageCode": "ko"
-    }
-
     try:
         # TODO: API 호출 공통부로 구분 예정.
         # 특히 만약에 오류가 발생하거나, 정보가 부족한 경우 LLM이 지속적으로 호출해야할 수 있기 때문에 session 관리를 하는 util 함수 필요.
-        response = requests.post(url, json=payload, headers=headers)
-        print("response", response.text)
-        response.raise_for_status()
-        results = response.json().get("places", [])
+        response = get_places_from_api(destination, styles, constraints, limit)
+        
+        if response["status_code"] != 200:
+            return {
+                "status": "error",
+                "data": None,
+                "error": f"API 호출 실패 (Status: {response['status_code']}): {response['error_text']}",
+                "meta": {"tool_name": "place_search"}
+            }
+    
+        results = response["json_data"].get("places", [])
         
         # results = []    # placeNotFoundError 테스트
 
@@ -81,9 +96,9 @@ def search_place_tool(destination: str, styles: List[str], constraints: List[str
                     "lat": p.get("location", {}).get("latitude"),
                     "lng": p.get("location", {}).get("longitude"),
                     # TODO: types의 종류가 많아서, 간단하게 변경할 함수 생성
-                    "category": types[0] if types else "N/A",
+                    "category": types[0] if types else "default",
                     "summary": p.get("editorialSummary", {}).get("text", "정보 없음"),
-                    "rating": p.get("rating", {}),
+                    "rating": p.get("rating", 0),
                     "indoor_outdoor": "indoor" if is_indoor else "outdoor",
                 }
 
@@ -128,14 +143,15 @@ if __name__ == "__main__":
     print(f"--- '{test_destination}' 검색 테스트 시작 ---")
 
     list = []
+    print(f"DEBUG: {places_api_key}")
 
-    # tool 호출
-    result = search_place_tool.invoke({
-        "destination": test_destination,
-        "styles": test_styles,
-        "constraints": test_constraints,
-        "limit": 3
-    })
+    # # tool 호출
+    # result = search_place_tool.invoke({
+    #     "destination": test_destination,
+    #     "styles": test_styles,
+    #     "constraints": test_constraints,
+    #     "limit": 3
+    # })
 
     # 결과 확인
     # import json
