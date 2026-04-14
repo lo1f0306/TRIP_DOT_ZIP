@@ -6,10 +6,14 @@ import os
 import requests
 from utils.custom_exception import PlaceNotFoundError
 from config import Settings
+import json
 
 # TODO: 1. 필요한 부분 category(types 매핑)
 # TODO: 2. API에서 가져온 정보가지고 LLM에 전달할 장소 추천 멘트 생성
 places_api_key = Settings.places_api_key
+
+# Test를 위한 값.
+SAVE_FILE_TEST_MODE = False
 
 # LLM에게 제공할 Schema
 class PlaceSearchInfo(BaseModel):
@@ -26,10 +30,20 @@ class PlaceSearchInfo(BaseModel):
 # def 
 
 @st.cache_data(ttl=3600)
-def get_places_from_api(destination: str, styles: List[str], constraints: List[str], limit: int):
-    """
-        google place api를 통해 places 정보 호출
+def get_places_from_api(destination: str, styles: List[str], constraints: List[str], limit: int) -> dict[str, any]:
+    """ Google Places API(New)를 사용하여 특정 지역의 장소 데이터를 검색하고 추천 정보를 생성함.
 
+        사용자의 목적지, 여행 스타일, 제약 사항을 기반으로 텍스트 쿼리를 생성하여 장소를 검색하며,
+        결과 데이터에는 장소 정보, 평점, 실내외 여부 및 LLM용 추천 사유가 포함됨.
+
+        Args:
+            destination (str): 검색할 도시 또는 지역명 (예: '부산', '서울')
+            styles (List[str]): 선호하는 여행 스타일 목록 (예: ['맛집', '카페'])
+            constraints (List[str]): 특별한 제약 사항 또는 환경 (예: ['실내', '주차 가능'])
+            limit (int): 검색할 최대 장소 개수 (기본값: 5)
+
+        Returns:
+            dict: 검색 성공 시 장소 목록(data)과 메타 정보를 반환하고, 실패 시 에러 정보를 반환함.
     """
     url = "https://places.googleapis.com/v1/places:searchText"
     query = f"{destination} {' '.join(styles)} {' '.join(constraints)}"
@@ -37,7 +51,7 @@ def get_places_from_api(destination: str, styles: List[str], constraints: List[s
     headers = {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": places_api_key,
-        "X-Goog-FieldMask": "places.id,places.displayName,places.location,places.primaryType,places.primaryTypeDisplayName,places.types,places.priceLevel,places.priceRange,places.rating"
+        "X-Goog-FieldMask": "places.id,places.displayName,places.location,places.primaryType,places.primaryTypeDisplayName,places.types,places.priceLevel,places.priceRange,places.rating,places.reviews,places.reviewSummary"
     }
     
     payload = {
@@ -57,13 +71,19 @@ def get_places_from_api(destination: str, styles: List[str], constraints: List[s
 # search_place tool
 @tool("place_search", args_schema=PlaceSearchInfo)
 def search_place_tool(destination: str, styles: List[str], constraints: List[str], limit: int = 5) -> dict[str, any]:
-    """
-        Google Places API (New)사용 특정 지역(destination)의 장소 데이터 검색
+    """ Google Places API:searchText 엔드포인트를 호출하여 원본 장소 데이터를 가져옴.
 
-        destination (str):
-        styles (List[str])
-        constraints (List[str])
-        limit (int)
+        Streamlit의 cache_data를 사용하여 동일한 쿼리에 대해 1시간 동안 API 호출 결과를 캐싱함.
+
+        Args:
+            destination (str): 검색할 대상 지역명
+            styles (List[str]): 검색 키워드에 포함할 스타일 리스트
+            constraints (List[str]): 검색 키워드에 포함할 제약 조건 리스트
+            limit (int): API로부터 응답받을 결과의 최대 개수
+
+        Returns:
+            dict: API 응답 상태 코드(status_code), 성공 시 JSON 데이터(json_data), 
+                실패 시 에러 메시지(error_text)를 포함한 딕셔너리.
     """
     try:
         # TODO: API 호출 공통부로 구분 예정.
@@ -79,8 +99,18 @@ def search_place_tool(destination: str, styles: List[str], constraints: List[str
             }
     
         results = response["json_data"].get("places", [])
+
+        # 테스트를 위한 코드 삽입(DELETE_CODE)
+        if SAVE_FILE_TEST_MODE:
+            print(f'{SAVE_FILE_TEST_MODE = }') 
+            print(json.dumps(results, indent=4, ensure_ascii=False))
+            # 저장할 파일명 설정
+            file_path = "travel_itinerary.json"
+            # 데이터를 보기 위한 파일 다운로드 
+            with open(file_path, 'w', encoding='utf-8') as f:
+                json.dump(results, f, indent=4, ensure_ascii=False)
         
-        # results = []    # placeNotFoundError 테스트
+        # results = []    # placeNotFoundError 테스트(DELETE_CODE)
 
         mapped_places = []
         # 결과값이 있을 때
@@ -104,7 +134,7 @@ def search_place_tool(destination: str, styles: List[str], constraints: List[str
 
                 mapped_places.append({
                     **temp_place_info,
-                    "recommended_reason": f"{destination}에서 평점 {temp_place_info.rating}의 {temp_place_info.category} 중 하나입니다."
+                    "recommended_reason": f"{destination}에서 평점 {temp_place_info['rating']}의 {temp_place_info['category']} 중 하나입니다."
                 })
 
             return {
@@ -123,7 +153,7 @@ def search_place_tool(destination: str, styles: List[str], constraints: List[str
         # 정해진 error message 호출
         return e.error_response()
 
-    except Exception as e: # 어.. 이것도 다 customException을 만들어야 하나..?
+    except Exception as e:
         return {
             "status": "error",
             "data": None,
@@ -143,16 +173,15 @@ if __name__ == "__main__":
     print(f"--- '{test_destination}' 검색 테스트 시작 ---")
 
     list = []
-    print(f"DEBUG: {places_api_key}")
+    # print(f"DEBUG: {places_api_key}")
 
     # # tool 호출
-    # result = search_place_tool.invoke({
-    #     "destination": test_destination,
-    #     "styles": test_styles,
-    #     "constraints": test_constraints,
-    #     "limit": 3
-    # })
+    result = search_place_tool.invoke({
+        "destination": test_destination,
+        "styles": test_styles,
+        "constraints": test_constraints,
+        "limit": 3
+    })
 
     # 결과 확인
-    # import json
-    # print(json.dumps(result, indent=4, ensure_ascii=False))
+    print(json.dumps(result, indent=4, ensure_ascii=False))
