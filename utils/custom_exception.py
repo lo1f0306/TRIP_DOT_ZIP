@@ -33,3 +33,16 @@ class PlaceNotFoundError(CommonCustomError):
             tool_name = tool_name
         )
         
+# 경로 Not Found Error
+class RouteNotFoundError(CommonCustomError):
+    def __init__(self, origin: str, destination: str, tool_name: str = "create_schedule"):
+        message = (
+            f"'{origin}'에서 '{destination}'(으)로 이동할 수 있는 경로를 찾을 수 없습니다. "
+            "현재 교통 상황이나 선택한 이동 수단으로는 접근이 불가능하니, "
+            "해당 장소를 제외하거나 동선이 용이한 다른 장소를 새롭게 추천해 주세요."
+        )
+        super().__init__(
+            code="ROUTE_NOT_FOUND",
+            message=message,
+            tool_name=tool_name
+        )
