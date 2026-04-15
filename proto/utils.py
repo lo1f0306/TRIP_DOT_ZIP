@@ -5,7 +5,7 @@ import os
 import streamlit as st
 from openai import OpenAI
 from dotenv import load_dotenv
-from constants import OPENAI_MODEL, TEMPERATURE, MAX_TOKENS, CSS_FILE_PATH
+from proto.constants import OPENAI_MODEL, TEMPERATURE, MAX_TOKENS, CSS_FILE_PATH
 
 load_dotenv()
 

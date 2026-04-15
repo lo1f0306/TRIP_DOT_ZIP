@@ -1,18 +1,13 @@
 # app.py
 import streamlit as st
-import sys
-import os
-
-BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-sys.path.append(BASE_DIR)
 
 from llm.graph import get_openai_clients
 
-from constants import SYSTEM_PROMPT
 from config import Settings
 from middlewares.safety_mw import profanity_middleware, pii_middleware
 from middlewares.pipeline import LLMRequest, LLMResponse, Pipeline
-from utils import (
+from proto.constants import SYSTEM_PROMPT
+from proto.utils import (
     init_app,
     reset_session_state,
     parse_buttons,

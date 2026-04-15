@@ -3,7 +3,6 @@ from __future__ import annotations
 import html
 import base64
 import re
-import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -11,21 +10,17 @@ import streamlit as st
 from dotenv import load_dotenv
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
-PROTO_DIR = ROOT_DIR / "proto"
-if str(PROTO_DIR) not in sys.path:
-    sys.path.insert(0, str(PROTO_DIR))
-if str(ROOT_DIR) not in sys.path:
-    sys.path.append(str(ROOT_DIR))
 
-from constants import SYSTEM_PROMPT
 from mock_tools.place_tools import search_places
 from mock_tools.schedule_tools import build_schedule
 from mock_tools.weather_tools import get_weather
-from utils import get_ai_response, parse_buttons
+from proto.constants import SYSTEM_PROMPT
+from proto.utils import get_ai_response, parse_buttons
 
 load_dotenv(ROOT_DIR / ".env")
 
 GUIDE_MOUSE_IMAGE = ROOT_DIR / "assets" / "tripdotzip_guide_mouse.png"
+MOUSE_ICON_IMAGE = ROOT_DIR / "assets" / "tripdotzip_mouse_icon.png"
 
 
 st.set_page_config(
@@ -43,6 +38,15 @@ def load_css() -> None:
 
 def now_label() -> str:
     return datetime.now().strftime("%H:%M")
+
+
+@st.cache_data
+def image_data_uri(path_text: str) -> str:
+    path = Path(path_text)
+    if not path.exists():
+        return ""
+    encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+    return f"data:image/png;base64,{encoded}"
 
 
 def init_state() -> None:
@@ -177,7 +181,8 @@ def render_message(message: dict) -> None:
     role = message["role"]
     wrapper_class = "user" if role == "user" else ""
     avatar_class = "user" if role == "user" else "bot"
-    avatar = "나" if role == "user" else "AI"
+    mouse_icon = image_data_uri(str(MOUSE_ICON_IMAGE))
+    avatar = "나" if role == "user" else f'<img src="{mouse_icon}" alt="트립닷집">'
     content = html.escape(message["content"]).replace("\n", "<br>")
     timestamp = html.escape(message.get("time", ""))
 
@@ -196,10 +201,7 @@ def render_message(message: dict) -> None:
 
 
 def render_loading_message() -> None:
-    image_src = ""
-    if GUIDE_MOUSE_IMAGE.exists():
-        encoded = base64.b64encode(GUIDE_MOUSE_IMAGE.read_bytes()).decode("ascii")
-        image_src = f"data:image/png;base64,{encoded}"
+    image_src = image_data_uri(str(GUIDE_MOUSE_IMAGE))
     st.markdown(
         f"""
         <div class="bubble-wrapper">
@@ -269,10 +271,11 @@ def render_mock_preview() -> None:
 
 def render_left_panel() -> None:
     info = st.session_state.trip_info
+    mouse_icon = image_data_uri(str(MOUSE_ICON_IMAGE))
     st.markdown(
-        """
+        f"""
         <div class="brand">
-            <div class="brand-icon">TZ</div>
+            <div class="brand-icon"><img src="{mouse_icon}" alt="트립닷집"></div>
             <div>
                 <div class="brand-name">트립닷집</div>
                 <div class="brand-desc">AI 여행 추천 챗봇</div>

@@ -51,10 +51,15 @@ html, body, [class*="css"] {
     border-radius: 50%;
     display: grid;
     place-items: center;
-    background: var(--trip-blue);
-    color: white;
-    font-weight: 800;
-    letter-spacing: 0;
+    background: white;
+    border: 2px solid var(--trip-blue);
+    overflow: hidden;
+}
+
+.brand-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .brand-name {
@@ -175,13 +180,20 @@ html, body, [class*="css"] {
 }
 
 .avatar.bot {
-    background: var(--trip-blue);
-    color: white;
+    background: white;
+    border: 2px solid var(--trip-blue);
+    overflow: hidden;
 }
 
 .avatar.user {
     background: #5d6675;
     color: white;
+}
+
+.avatar.bot img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .message-group {
