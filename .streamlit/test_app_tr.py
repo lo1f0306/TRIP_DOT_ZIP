@@ -1,6 +1,11 @@
 from __future__ import annotations
 
 import sys
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+sys.path.append(str(BASE_DIR))
+
 import html
 import base64
 import re
@@ -10,20 +15,11 @@ from pathlib import Path
 import streamlit as st
 from dotenv import load_dotenv
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-sys.path.append(str(BASE_DIR))
-
 ROOT_DIR = Path(__file__).resolve().parents[1]
-
-from mock_tools.place_tools import search_places
-from mock_tools.schedule_tools import build_schedule
-from mock_tools.weather_tools import get_weather
-from mock_tools.weather_tools import get_weather_from_prompt
 
 from llm.prompts import SYSTEM_PROMPT
 from proto.utils import parse_buttons
 from agent_builder import agent
-from llm.tools import get_weather_tool
 
 load_dotenv(ROOT_DIR / ".env")
 
@@ -58,23 +54,6 @@ def image_data_uri(path_text: str) -> str:
         return ""
     encoded = base64.b64encode(path.read_bytes()).decode("ascii")
     return f"data:image/png;base64,{encoded}"
-
-
-def extract_message_text(content) -> str:
-    """LangChain message content를 안전하게 문자열로 변환한다."""
-    if isinstance(content, str):
-        return content
-
-    if isinstance(content, list):
-        text_parts = []
-        for item in content:
-            if isinstance(item, dict) and item.get("type") == "text":
-                text_parts.append(str(item.get("text", "")))
-            else:
-                text_parts.append(str(item))
-        return " ".join(part for part in text_parts if part).strip()
-
-    return str(content)
 
 
 def init_state() -> None:
@@ -165,46 +144,6 @@ def update_trip_info(user_text: str) -> None:
             break
 
 
-def invoke_tool(tool, payload: dict) -> dict:
-    try:
-        return tool.invoke(payload)
-    except Exception as exc:
-        return {
-            "status": "error",
-            "data": None,
-            "error": {"message": str(exc)},
-        }
-
-
-def get_mock_preview() -> dict:
-    info = st.session_state.trip_info
-    destination = info["destination"] if info["destination"] != "미정" else "강릉"
-    trip_date = info["date"] if info["date"] != "미정" else "2026-05-14"
-    style = info["style"] if info["style"] != "미정" else "휴식형"
-
-    weather = invoke_tool(get_weather, {"destination": destination, "date": trip_date})
-    places = invoke_tool(search_places, {"region": destination, "theme": style})
-
-    place_items = []
-    if places.get("status") == "success":
-        place_items = places.get("data", {}).get("places", [])
-
-    schedule = invoke_tool(
-        build_schedule,
-        {
-            "start_time": "10:00",
-            "end_time": "18:00",
-            "places": place_items,
-        },
-    )
-
-    return {
-        "weather": weather,
-        "places": places,
-        "schedule": schedule,
-    }
-
-
 def render_message(message: dict) -> None:
     role = message["role"]
     wrapper_class = "user" if role == "user" else ""
@@ -277,34 +216,6 @@ def render_history_item(title: str, day: str) -> None:
     )
 
 
-def render_mock_preview() -> None:
-    preview = get_mock_preview()
-    weather_data = (
-        preview["weather"].get("data", {})
-        if preview["weather"].get("status") == "success"
-        else {}
-    )
-    schedule_data = (
-        preview["schedule"].get("data", {})
-        if preview["schedule"].get("status") == "success"
-        else {}
-    )
-    itinerary = schedule_data.get("itinerary", [])
-
-    st.markdown('<div class="side-title">1차 추천 미리보기</div>', unsafe_allow_html=True)
-    render_info_card("W", "날씨", str(weather_data.get("weather", "확인 예정")))
-
-    if itinerary:
-        first_item = itinerary[0]
-        render_info_card(
-            "T",
-            "첫 일정",
-            f"{first_item.get('time', '')} {first_item.get('place_name', '')}",
-        )
-    else:
-        render_info_card("T", "첫 일정", "조건 입력 후 생성")
-
-
 def render_left_panel() -> None:
     info = st.session_state.trip_info
     mouse_icon = image_data_uri(str(MOUSE_ICON_IMAGE))
@@ -326,8 +237,6 @@ def render_left_panel() -> None:
     render_info_card("D", "여행 날짜", info["date"])
     render_info_card("N", "인원", info["people"])
     render_info_card("S", "여행 스타일", info["style"])
-
-    render_mock_preview()
 
     st.markdown('<div class="side-title">지난 여행 계획</div>', unsafe_allow_html=True)
     for title, day in st.session_state.history_items:
@@ -353,25 +262,24 @@ def render_intro() -> None:
     )
 
 
+def invoke_agent(message_pairs: list[tuple[str, str]]) -> str:
+    response = agent.invoke({"messages": message_pairs})
+    return response["messages"][-1].content
+
+
 def initialize_greeting() -> None:
-    st.write("DEBUG: initialize_greeting 진입")
+    print("DEBUG: initialize_greeting 진입")
 
     if st.session_state.initialized:
         return
 
     try:
         with st.spinner("트립닷집이 준비 중이에요..."):
-            print("DEBUG: executor.run 직전")
-            response = agent.invoke(
-                {
-                    "messages": [
-                        {"role": "system", "content": SYSTEM_PROMPT},
-                        {"role": "user", "content": "안녕하세요! 여행 추천을 받고 싶어요."},
-                    ]
-                }
-            )
-
-        greeting_raw = extract_message_text(response["messages"][-1].content)
+            greeting_raw = invoke_agent([
+                ("system", SYSTEM_PROMPT),
+                ("user", "안녕하세요! 여행 추천을 받고 싶어요."),
+            ])
+            print("DEBUG: greeting_raw =", greeting_raw)
 
     except Exception as exc:
         print("DEBUG: initialize_greeting 예외 =", exc)
@@ -399,88 +307,19 @@ def process_user_input(user_text: str) -> None:
     )
     st.session_state.quick_buttons = []
 
-    print("DEBUG: executor.run 직전")
-    print("DEBUG: current_messages =", st.session_state.messages)
+    message_pairs = [("system", SYSTEM_PROMPT)]
+    message_pairs.extend((m["role"], m["content"]) for m in st.session_state.messages)
+
+    print("DEBUG: agent.invoke 직전")
+    print("DEBUG: message_pairs =", message_pairs)
 
     loading_slot = st.empty()
     try:
         with loading_slot.container():
             render_loading_message()
-
         with st.spinner(""):
-            # =========================
-            # 1. 날씨 질문이면 tool 직접 호출
-            # =========================
-            if "날씨" in user_text:
-
-
-                city_name = st.session_state.trip_info["destination"]
-                if city_name == "미정":
-                    city_name = "서울"
-
-                # 아주 단순한 상대 날짜 추출
-                travel_date = None
-                if "다음주 토요일" in user_text or "다음 주 토요일" in user_text:
-                    travel_date = "다음주 토요일"
-                elif "내일" in user_text:
-                    travel_date = "내일"
-                elif "모레" in user_text:
-                    travel_date = "모레"
-
-                print("🔥 FORCE TOOL CALL")
-                print("DEBUG direct weather city_name =", city_name)
-                print("DEBUG direct weather travel_date =", travel_date)
-
-                tool_result = get_weather_from_prompt.invoke(
-                    {"user_prompt": user_text}
-                )
-
-                print("DEBUG tool_result =", tool_result)
-
-                # tool 결과를 사용자용 문장으로 변환
-                if tool_result.get("status") == "error":
-                    raw_reply = (
-                        f"날씨 정보를 불러오지 못했어요.\n"
-                        f"오류: {tool_result.get('message', '알 수 없는 오류')}"
-                    )
-                else:
-                    data = tool_result.get("data", {})
-                    result_data = data.get("result", {})
-
-                    weather_info = result_data.get("weather", {})
-                    ddatchwi_info = result_data.get("ddatchwi", {})
-
-                    weather_text = weather_info.get("description", "정보 없음")
-                    ddatchwi_character = ddatchwi_info.get("character", "")
-                    ddatchwi_text = ddatchwi_info.get("message", "참고 정보가 없어요.")
-                    display_city = data.get("display_city_name", city_name)
-                    resolved_date = data.get("resolved_travel_date", travel_date)
-
-                    raw_reply = (
-                        f"{display_city} 날씨 조회 결과예요.\n"
-                        f"- 날짜: {resolved_date}\n"
-                        f"- 날씨: {weather_text}\n\n"
-                        f"{ddatchwi_character}\n"
-                        f"{ddatchwi_text}"
-                    )
-            # =========================
-            # 2. 그 외 질문은 기존 agent 사용
-            # =========================
-            else:
-                response = agent.invoke(
-                    {
-                        "messages": [
-                            {"role": "system", "content": SYSTEM_PROMPT},
-                            *[
-                                {"role": m["role"], "content": m["content"]}
-                                for m in st.session_state.messages
-                            ],
-                        ]
-                    }
-                )
-
-                raw_reply = extract_message_text(response["messages"][-1].content)
-                print("DEBUG: executor.run 직후", raw_reply)
+            raw_reply = invoke_agent(message_pairs)
+            print("DEBUG: agent.invoke 직후", raw_reply)
 
     except Exception as exc:
         print("DEBUG: process_user_input 예외 =", exc)

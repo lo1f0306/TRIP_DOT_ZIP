@@ -9,7 +9,7 @@ LLM 동작 검증을 위한 Weather mock tool.
 from langchain.tools import tool
 from llm.schemas import success_response
 
-from services.weather_case import (
+from services.weather_service import (
     build_weather_based_route_decision,
     build_weather_route_from_user_prompt,
     normalize_city_name_for_weather,

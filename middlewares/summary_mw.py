@@ -2,13 +2,43 @@ import logging
 from openai import OpenAI
 from middlewares.pipeline import LLMRequest, LLMResponse
 
+"""
+summary_mw.py
+
+대화 길이가 길어질 때 이전 메시지를 요약하여
+LLM 입력 토큰/문자 수를 줄이고, 핵심 맥락만 유지하기 위한
+Conversation Summary Middleware 모듈이다.
+
+주요 기능:
+- 일정 길이 이상 대화가 누적되면 자동 요약 수행
+- system 메시지는 유지하고, 과거 대화는 요약으로 압축
+- 최근 N개의 메시지는 그대로 유지하여 문맥 손실 방지
+- OpenAI LLM을 활용해 한국어 요약 생성
+
+동작 방식:
+1. 메시지 총 문자 수가 threshold를 초과하면 요약 트리거
+2. 오래된 메시지를 분리하고 요약 생성
+3. [이전 대화 요약] system 메시지로 삽입
+4. 최근 메시지와 함께 LLM에 전달
+
+이 모듈은 middlewares.pipeline의 LLMRequest / LLMResponse 구조에서
+동작하도록 설계된 미들웨어이다.
+"""
+
 logger = logging.getLogger(__name__)
 
 
 def collect_summary_target_messages(messages: list[dict]) -> list[dict]:
-    """
-    요약 대상 메시지에서 system은 제외하고,
-    text content만 남긴다. list 타입 content는 텍스트 파트만 추출한다.
+    """요약 대상 메시지를 필터링한다.
+
+    system 메시지는 제외하고 user와 assistant 메시지만 추출한다.
+    content가 list 타입(멀티모달)일 경우 text 파트만 추출하여 결합한다.
+
+    Args:
+        messages (list[dict]): 전체 대화 메시지 리스트
+
+    Returns:
+        list[dict]: 요약에 사용할 메시지 리스트
     """
     filtered = []
 
@@ -37,6 +67,17 @@ def collect_summary_target_messages(messages: list[dict]) -> list[dict]:
 
 
 def format_messages_for_summary(messages: list[dict]) -> str:
+    """메시지 리스트를 요약용 문자열로 변환한다.
+
+    각 메시지를 [role] content 형식으로 변환하여
+    하나의 문자열로 결합한다.
+
+    Args:
+        messages (list[dict]): 요약 대상 메시지 리스트
+
+    Returns:
+        str: 요약 모델 입력용 문자열
+    """
     lines = []
 
     for msg in messages:
@@ -52,6 +93,19 @@ def generate_summary(
     messages: list[dict],
     max_chars: int = 700,
 ) -> str:
+    """LLM을 사용하여 대화 요약을 생성한다.
+
+    메시지를 문자열로 변환한 뒤,
+    사용자 목표, 조건, 맥락을 포함한 요약을 생성한다.
+
+    Args:
+        client (OpenAI): OpenAI API 클라이언트
+        messages (list[dict]): 요약 대상 메시지
+        max_chars (int): 요약 최대 길이 제한
+
+    Returns:
+        str: 생성된 요약 텍스트
+    """
     summary_input = format_messages_for_summary(messages)
 
     if not summary_input.strip():
@@ -92,6 +146,16 @@ def generate_summary(
 
 
 def count_text_chars(messages: list[dict]) -> int:
+    """메시지 내 전체 텍스트 길이를 계산한다.
+
+    content가 문자열인 경우에만 길이를 합산한다.
+
+    Args:
+        messages (list[dict]): 전체 메시지 리스트
+
+    Returns:
+        int: 총 문자 수
+    """
     total = 0
     for msg in messages:
         content = msg.get("content")
@@ -105,7 +169,33 @@ def conversation_summary_middleware(
     trigger_char_count: int = 1000,
     keep_last_n: int = 4,
 ):
+    """대화 요약을 수행하는 미들웨어를 생성한다.
+
+    메시지 길이가 일정 기준을 초과하면 과거 메시지를 요약하고,
+    최근 메시지와 함께 재구성하여 LLM에 전달한다.
+
+    Args:
+        openai_client (OpenAI): OpenAI API 클라이언트
+        trigger_char_count (int): 요약 실행 기준 문자 수
+        keep_last_n (int): 유지할 최근 메시지 개수
+
+    Returns:
+        callable: LLMRequest를 받아 요약 후 next_로 전달하는 미들웨어 함수
+    """
+
     def middleware(request: LLMRequest, next_) -> LLMResponse:
+        """요약 로직을 수행하고 다음 단계로 전달한다.
+
+        메시지 길이를 확인하여 요약 여부를 판단하고,
+        필요 시 과거 메시지를 요약하여 재구성한다.
+
+        Args:
+            request (LLMRequest): 현재 요청 객체 (messages 포함)
+            next_ (callable): 다음 미들웨어 또는 LLM 호출 함수
+
+        Returns:
+            LLMResponse: 다음 단계 처리 결과
+        """
         logger.debug("conversation summary middleware 실행됨")
         logger.debug("현재 message 수: %d", len(request.messages))
 
