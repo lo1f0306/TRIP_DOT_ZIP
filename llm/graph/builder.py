@@ -3,6 +3,7 @@ from llm.graph.state import TravelAgentState
 from llm.graph.routes import should_continue
 from llm.nodes.intent_nodes import route_intent_node
 from llm.nodes.response_node import build_response_node
+from llm.nodes.nodes_mock import search_places_node, scheduler_node, weather_node       # mock node 등록해서 돌아가는지 확인
 from llm.graph.contracts import StateKeys # 규약 임포트
 
 # 1. 그래프 초기화
@@ -12,6 +13,11 @@ workflow = StateGraph(TravelAgentState)
 workflow.add_node("intent_router", route_intent_node)
 workflow.add_node("response_node", build_response_node) # 최종 답변 노드
 # 나머지 노드들은 담당자들이 완성하는 대로 추가 예정 -> 임의로 place_node 추가
+
+# 일단 확인용 mock node 추가
+workflow.add_node("place_node", search_places_node)
+workflow.add_node("scheduler_node", scheduler_node)
+workflow.add_node("weather_node", weather_node)
 
 # 3. 흐름 연결
 workflow.set_entry_point("intent_router")
