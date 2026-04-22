@@ -71,6 +71,10 @@ def validate_travel_plan_node(state: TempTravelAgentState) -> dict:
 
 # 검증 후의 분기 로직
 def route_after_validation(state: TravelAgentState):
+    """ 검증 노드(validate_node)의 결과에 따라 다음 진행 노드를 결정하는 라우터 함수. 
+        Args: TravelAgentState 객체 (품질 검증 결과인 quality_check 포함)
+        Returns: 다음으로 이동할 노드 이름 (place_node, scheduler_node, 또는 response_node)
+    """
     quality_check = state.get("quality_check")
     
     # 검증 통과 못 했을 때
