@@ -10,7 +10,7 @@ import os
 import traceback
 from dotenv import load_dotenv
 
-from test_backup.agent_builder import build_agent
+from agent_builder import build_agent
 
 load_dotenv()
 
@@ -31,7 +31,7 @@ def run_invoke(agent, user_input: str):
     )
 
     print("=== Agent Result ===")
-    print(result["messages"][-1].content)
+    print(result.get("final_response", "final_response 없음"))
 
 
 def run_debug(agent, user_input: str):
@@ -44,13 +44,11 @@ def run_debug(agent, user_input: str):
     )
 
     print("=== Final Answer ===")
-    print(result["messages"][-1].content)
+    print(result.get("final_response", "final_response 없음"))
 
-    print("\n=== Tool Trace ===")
-    for i, msg in enumerate(result["messages"], 1):
-        print(f"[{i}] type={getattr(msg, 'type', None)} / name={getattr(msg, 'name', None)}")
-        print(getattr(msg, "content", None))
-        print("-" * 80)
+    print("\n=== Full State ===")
+    for k, v in result.items():
+        print(f"{k}: {v}")
 
 
 def run_stream(agent, user_input: str):
