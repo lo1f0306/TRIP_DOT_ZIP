@@ -8,6 +8,7 @@ from llm.nodes.response_nodes import build_response_node, blocked_response_node
 from llm.nodes.place_node import place_node
 from llm.nodes.place_search_node import place_search_node
 from llm.nodes.schedule_nodes import scheduler_node
+from llm.nodes.validate_node import validate_travel_plan_node, route_after_validation
 
 # middleware node
 from llm.nodes.safety_nodes import safe_input_node
@@ -31,6 +32,7 @@ workflow.add_node("weather_node", weather_node)
 workflow.add_node("select_places_node", select_places_node)     # 선택한 장소 저장 노드
 workflow.add_node("scheduler_node", scheduler_node)
 workflow.add_node("modify_node", modify_trip_requirements_node)
+workflow.add_node("validate_node", validate_travel_plan_node)
 
 # middleware node
 workflow.add_node("safe_input_node", safe_input_node)
@@ -40,8 +42,8 @@ workflow.add_node("summary_node", summary_node)
 
 # 3. 흐름 연결
 workflow.set_entry_point("safe_input_node")
-workflow.add_edge("safe_input_node", "summary_node")
-workflow.add_edge("summary_node", "intent_router")
+workflow.add_edge("safe_input_node", "summary_node")    # 경로가 아래 조건부 엣지에 중복으로 걸려 있는데 삭제해도 되지 않을까요?
+workflow.add_edge("summary_node", "intent_router")      # 상동
 
 workflow.add_conditional_edges(
     "safe_input_node",
@@ -70,7 +72,7 @@ workflow.add_conditional_edges(
     {
         "ask_user_node": "ask_user_node",       # 사용자에게 정보를 더 받아야 하면 여기로
         "weather_node": "weather_node",         # 날씨 정보가 필요하면 여기로
-        "place_node": "place_node",             # 장소 검색이 필요하면 여기로 ★ 수정 필요
+        "place_node": "place_node",             # 장소 검색이 필요하면 여기로
         "scheduler_node": "scheduler_node",     # 이미 장소가 충분하면 바로 여기로
         "modify_node": "modify_node",           # 수정할 내용이 있다면 여기로
         "response_node": "response_node"        # 일반 대화는 바로 답변으로!
@@ -83,6 +85,18 @@ workflow.add_edge("modify_node", "place_node")
 workflow.add_edge("place_node", "place_search_node")
 workflow.add_edge("place_search_node", "select_places_node")
 workflow.add_edge("select_places_node", "scheduler_node")
+
+# 검증 흐름
+workflow.add_edge("scheduler_node", "validate_node")
+workflow.add_conditional_edges(
+    "validate_node",
+    route_after_validation,
+    {
+        "place_node": "place_node",
+        "scheduler_node": "scheduler_node",
+        "response_node": "response_node"
+    }
+)
 
 # ask_user는 질문을 만든 뒤 종료
 workflow.add_edge("ask_user_node", END)
