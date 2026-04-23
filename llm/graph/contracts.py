@@ -1,42 +1,42 @@
-
-
 class StateKeys:
     """
-    State에서 공통으로 사용하는 Key들을 정의합니다.
-    모든 노드는 이 상수를 참조하여 데이터를 읽고 써야 합니다.
+    State에서 공통으로 사용하는 키 상수 모음.
+    노드 간 데이터 전달 시 문자열 하드코딩 대신 이 값을 사용한다.
     """
-    # 기본 대화 / 라우팅 관련
+
+    # 기본 대화/라우팅
     MESSAGES = "messages"
     INTENT = "intent"
     CONFIDENCE = "confidence"
     ROUTE = "route"
     FINAL_RESPONSE = "final_response"
 
-    # 장소 검색 영역
+    # 장소 검색
     DESTINATION = "destination"
     STYLES = "styles"
     CONSTRAINTS = "constraints"
     MAPPED_PLACES = "mapped_places"
-    SELECTED_PLACES = "selected_places"     # 사용자가 최종 선택한 장소 목록
+    SELECTED_PLACES = "selected_places"
 
-    # 일정/날씨 영역
+    # 일정/날씨
     ITINERARY = "itinerary"
     WEATHER_DATA = "weather_data"
 
-    # 여행 날짜 영역
+    # 여행 날짜
     TRAVEL_DATE = "travel_date"
     RELATIVE_DAYS = "relative_days"
     RAW_DATE_TEXT = "raw_date_text"
 
-    # 대화형 흐름 확장용
-    NEED_WEATHER = "need_weather"           # 날씨 조회 필요 여부
-    START_TIME = "start_time"               # 일정 시작 시간
-    MISSING_SLOTS = "missing_slots"         # 아직 비어 있는 필수 정보 목록
+    # 흐름 제어
+    NEED_WEATHER = "need_weather"
+    START_TIME = "start_time"
+    MISSING_SLOTS = "missing_slots"
+    STATE_TYPE_CD = "state_type_cd"
 
-    # 대화 차단 확인용
+    # 안전 차단
     BLOCKED = "blocked"
-    BLOCK_REASON = "block_reason"
+    BLOCK_REASON = "blocked_reason"
 
-    # 대화 요약용
+    # 대화 요약
     CONVERSATION_SUMMARY = "conversation_summary"
     CONVERSATION_SUMMARIZED = "conversation_summarized"

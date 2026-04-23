@@ -1,22 +1,14 @@
 import re
-from llm.graph.state import TravelAgentState
+
 from llm.graph.contracts import StateKeys
+from llm.graph.state import TravelAgentState
 
 
-# -----------------------------
-# 내부 헬퍼: 지역 후보 추출
-# -----------------------------
 def _extract_destination(user_text: str) -> str | None:
-    """
-    사용자 입력에서 여행 목적지(지역명)를 단순 규칙 기반으로 추출합니다.
-
-    현재는 자주 등장하는 지역명을 우선 탐지하는 방식으로 구현하며,
-    추후 NER 또는 LLM 기반 추출로 확장할 수 있습니다.
-    """
     known_destinations = [
         "서울", "부산", "인천", "대구", "대전", "광주", "울산",
         "수원", "제주", "제주도", "경주", "전주", "여수", "강릉",
-        "속초", "춘천", "포항", "창원", "성수", "홍대", "잠실",
+        "속초", "춘천", "포항", "창원", "성수", "남해", "울릉도",
     ]
 
     for place in known_destinations:
@@ -26,140 +18,96 @@ def _extract_destination(user_text: str) -> str | None:
     return None
 
 
-# -----------------------------
-# 내부 헬퍼: 스타일 후보 추출
-# -----------------------------
 def _extract_styles(user_text: str) -> list[str]:
-    """
-    사용자 입력에서 여행 스타일/카테고리 키워드를 추출합니다.
-
-    예:
-    - 맛집
-    - 카페
-    - 전시
-    - 쇼핑
-    - 야경
-    """
     style_keywords = {
-        "맛집": ["맛집", "먹거리", "식당", "밥집", "음식점"],
-        "카페": ["카페", "디저트", "베이커리"],
+        "맛집": ["맛집", "먹거리", "식당", "밥집", "한식", "양식", "일식"],
+        "카페": ["카페", "커피", "베이커리", "디저트"],
         "전시": ["전시", "미술관", "박물관", "갤러리"],
-        "쇼핑": ["쇼핑", "편집샵", "백화점", "쇼룸"],
-        "야경": ["야경", "밤거리", "야간"],
+        "쇼핑": ["쇼핑", "편집샵", "백화점", "아울렛"],
+        "풍경": ["풍경", "바닷가", "야경", "뷰"],
         "산책": ["산책", "걷기", "공원"],
         "데이트": ["데이트", "분위기 좋은"],
-        "관광": ["관광", "명소", "핫플"],
+        "관광": ["관광", "명소", "핫플", "여행지"],
+        "액티비티": ["액티비티", "체험", "놀거리"],
     }
 
-    found_styles = []
-
+    found_styles: list[str] = []
     for canonical, keywords in style_keywords.items():
         if any(keyword in user_text for keyword in keywords):
             found_styles.append(canonical)
-
     return found_styles
 
 
-# -----------------------------
-# 내부 헬퍼: 제약사항 추출
-# -----------------------------
 def _extract_constraints(user_text: str) -> list[str]:
-    """
-    사용자 입력에서 제약사항을 추출합니다.
-
-    예:
-    - 실내 위주
-    - 비 오면 실내
-    - 반려동물 동반
-    - 조용한 곳
-    """
     constraint_keywords = {
-        "indoor": ["실내", "비 오면 실내", "실내 위주"],
-        "outdoor": ["야외", "실외", "실외 위주"],
-        "pet": ["반려동물", "애견동반", "강아지"],
+        "indoor": ["실내", "비오면 실내", "실내 위주"],
+        "outdoor": ["야외", "실외", "야외 위주"],
+        "pet": ["반려동물", "반려견 동반", "강아지"],
         "quiet": ["조용한", "한적한", "시끄럽지 않은"],
         "budget": ["가성비", "저렴한", "비싸지 않은"],
+        "solo": ["혼자", "혼자 갈", "혼자갈", "혼행"],
+        "couple": ["커플", "연인", "데이트"],
+        "family": ["가족", "가족여행"],
+        "parents": ["부모님", "부모님과", "모시고"],
+        "kids": ["아이", "아이와", "아이 동반", "아기"],
+        "haeundae": ["해운대"],
+        "1박2일": ["1박2일", "1박 2일"],
+        "2박3일": ["2박3일", "2박 3일"],
     }
 
-    found_constraints = []
-
+    found_constraints: list[str] = []
     for canonical, keywords in constraint_keywords.items():
         if any(keyword in user_text for keyword in keywords):
             found_constraints.append(canonical)
-
     return found_constraints
 
 
-# -----------------------------
-# 내부 헬퍼: 여행 날짜 추출
-# -----------------------------
 def _extract_date_fields(user_text: str) -> dict:
-    """
-    사용자 입력에서 날짜 관련 필드를 간단 추출합니다.
-    weather_service.resolve_travel_date()에 넘길 재료만 뽑는 용도입니다.
-    """
-    import re
-
     result = {
-        "travel_dates": None,
-        "relative_dates": None,
+        "travel_date": None,
+        "relative_days": None,
         "raw_date_text": None,
     }
 
-    # 절대 날짜
     match_date = re.search(r"(20\d{2}-\d{2}-\d{2})", user_text)
     if match_date:
-        result["travel_dates"] = match_date.group(1)
+        result["travel_date"] = match_date.group(1)
         return result
 
-    # 상대 날짜
+    match_month_day = re.search(r"(\d{1,2})\s*월\s*(\d{1,2})\s*일", user_text)
+    if match_month_day:
+        month = int(match_month_day.group(1))
+        day = int(match_month_day.group(2))
+        result["travel_date"] = f"2026-{month:02d}-{day:02d}"
+        return result
+
     if "오늘" in user_text:
         result["raw_date_text"] = "오늘"
         return result
-
     if "내일" in user_text:
         result["raw_date_text"] = "내일"
         return result
-
     if "모레" in user_text:
         result["raw_date_text"] = "모레"
         return result
-
     if "다음 주 토요일" in user_text or "다음주 토요일" in user_text:
         result["raw_date_text"] = "다음주토요일"
         return result
-
     if "이번 주 토요일" in user_text or "이번주 토요일" in user_text:
         result["raw_date_text"] = "이번주토요일"
         return result
 
-    # n일 뒤 / n일 후
-    match_relative = re.search(r"(\d+)일\s*(뒤|후)", user_text)
+    match_relative = re.search(r"(\d+)\s*(일 뒤|일후|일 후)", user_text)
     if match_relative:
-        result["relative_dates"] = int(match_relative.group(1))
+        result["relative_days"] = int(match_relative.group(1))
         return result
 
     return result
 
 
-
-# -----------------------------
-# 내부 헬퍼: 일정 시작 시간 추출
-# -----------------------------
 def _extract_start_time(user_text: str) -> str | None:
-    """
-    사용자 입력에서 일정 시작 시간을 추출합니다.
-
-    지원 예시:
-    - 오전 10시
-    - 오후 2시
-    - 10시부터
-    - 10:30부터
-    - 오전 10시부터 시작
-    """
     text = user_text.strip()
 
-    # 1) 오전/오후 + 시(:분) 패턴
     match_ampm = re.search(r"(오전|오후)\s*(\d{1,2})(?::(\d{2}))?\s*시", text)
     if match_ampm:
         ampm = match_ampm.group(1)
@@ -173,7 +121,6 @@ def _extract_start_time(user_text: str) -> str | None:
 
         return f"{hour:02d}:{minute:02d}"
 
-    # 2) 24시간 형식 10:30
     match_hm = re.search(r"(\d{1,2}):(\d{2})", text)
     if match_hm:
         hour = int(match_hm.group(1))
@@ -181,7 +128,6 @@ def _extract_start_time(user_text: str) -> str | None:
         if 0 <= hour <= 23 and 0 <= minute <= 59:
             return f"{hour:02d}:{minute:02d}"
 
-    # 3) 단순 '10시'
     match_hour = re.search(r"(\d{1,2})\s*시", text)
     if match_hour:
         hour = int(match_hour.group(1))
@@ -191,23 +137,7 @@ def _extract_start_time(user_text: str) -> str | None:
     return None
 
 
-# -----------------------------
-# 메인 노드 1: 여행 조건 추출
-# -----------------------------
 def extract_trip_requirements_node(state: TravelAgentState) -> dict:
-    """
-    사용자 입력에서 여행 조건을 추출하여 State에 반영하는 노드입니다.
-
-    현재 추출 대상:
-    - destination
-    - styles
-    - constraints
-    - start_time (선택값)
-
-    주의:
-    - start_time은 필수가 아니므로, 없으면 반환하지 않습니다.
-    - scheduler 쪽 기본값(09:00)을 그대로 활용합니다.
-    """
     messages = state.get(StateKeys.MESSAGES, [])
     if not messages:
         return {}
@@ -223,26 +153,18 @@ def extract_trip_requirements_node(state: TravelAgentState) -> dict:
 
     updates = {}
 
-    # 추출된 값만 state에 반영
     if destination:
         updates[StateKeys.DESTINATION] = destination
-
     if styles:
         updates[StateKeys.STYLES] = styles
-
     if constraints:
         updates[StateKeys.CONSTRAINTS] = constraints
-
     if date_info.get("travel_date"):
         updates[StateKeys.TRAVEL_DATE] = date_info.get("travel_date")
-
     if date_info.get("relative_days") is not None:
         updates[StateKeys.RELATIVE_DAYS] = date_info.get("relative_days")
-
     if date_info.get("raw_date_text"):
         updates[StateKeys.RAW_DATE_TEXT] = date_info.get("raw_date_text")
-
-    # start_time은 선택값
     if start_time:
         updates[StateKeys.START_TIME] = start_time
 
@@ -255,19 +177,7 @@ def extract_trip_requirements_node(state: TravelAgentState) -> dict:
     return updates
 
 
-# -----------------------------
-# 메인 노드 2: 부족한 정보 확인
-# -----------------------------
 def check_missing_info_node(state: TravelAgentState) -> dict:
-    """
-    일정 생성/장소 검색에 필요한 정보 중 비어 있는 값을 확인합니다.
-
-    현재 1차 버전에서는 destination만 필수로 간주합니다.
-    이유:
-    - destination이 없으면 place search가 어렵습니다.
-    - start_time은 없어도 scheduler 기본값(09:00) 사용 가능
-    - styles / constraints는 없어도 기본 추천 가능
-    """
     missing_slots = []
 
     destination = state.get(StateKeys.DESTINATION)
@@ -279,15 +189,7 @@ def check_missing_info_node(state: TravelAgentState) -> dict:
     return {StateKeys.MISSING_SLOTS: missing_slots}
 
 
-# -----------------------------
-# 메인 노드 3: 부족 정보 질문 생성
-# -----------------------------
 def ask_user_for_missing_info_node(state: TravelAgentState) -> dict:
-    """
-    부족한 정보가 있을 때 사용자에게 다시 질문할 문장을 생성합니다.
-
-    현재 1차 버전에서는 destination만 필수로 간주합니다.
-    """
     destination = state.get(StateKeys.DESTINATION)
 
     if not destination:
@@ -296,14 +198,7 @@ def ask_user_for_missing_info_node(state: TravelAgentState) -> dict:
     return {}
 
 
-# -----------------------------
-# 메인 노드 4: 정보 수정
-# -----------------------------
 def modify_trip_requirements_node(state: TravelAgentState) -> dict:
-    """
-    마지막 사용자 메세지가 수정 요청일 때,
-    기존 state를 유지하면서 필요한 조건만 덮어쓴다.
-    """
     messages = state.get(StateKeys.MESSAGES, [])
     if not messages:
         return {}
@@ -312,48 +207,38 @@ def modify_trip_requirements_node(state: TravelAgentState) -> dict:
     user_text = last_msg.content if hasattr(last_msg, "content") else last_msg.get("content", "")
 
     updates = {}
-
-    # 기존 값 복사
     current_styles = list(state.get(StateKeys.STYLES, []))
 
-    # "말고" 뒤 문장을 우선 해석
     parse_text = user_text
     if "말고" in user_text:
         parse_text = user_text.split("말고", 1)[1].strip()
 
-    # 1. 스타일 수정
-    # "카페 말고 맛집 위주로"
     if "카페 말고" in user_text and "맛집" in user_text:
         updates[StateKeys.STYLES] = ["맛집"]
     elif "맛집 말고" in user_text and "카페" in user_text:
         updates[StateKeys.STYLES] = ["카페"]
     else:
-        # 일반 추출 결과가 있으면 덮어쓰기
         extracted_styles = _extract_styles(parse_text)
         if extracted_styles:
             updates[StateKeys.STYLES] = extracted_styles
         else:
             updates[StateKeys.STYLES] = current_styles
 
-    # 2. 날짜 수정
     date_info = _extract_date_fields(parse_text)
 
     if date_info.get("travel_date"):
         updates[StateKeys.TRAVEL_DATE] = date_info.get("travel_date")
         updates[StateKeys.RAW_DATE_TEXT] = None
         updates[StateKeys.RELATIVE_DAYS] = None
-
     elif date_info.get("relative_days") is not None:
         updates[StateKeys.RELATIVE_DAYS] = date_info.get("relative_days")
         updates[StateKeys.TRAVEL_DATE] = None
         updates[StateKeys.RAW_DATE_TEXT] = None
-
     elif date_info.get("raw_date_text"):
         updates[StateKeys.RAW_DATE_TEXT] = date_info.get("raw_date_text")
         updates[StateKeys.TRAVEL_DATE] = None
         updates[StateKeys.RELATIVE_DAYS] = None
 
-    # 3. 장소/일정은 수정 후 다시 만들 것이므로 초기화
     updates[StateKeys.MAPPED_PLACES] = []
     updates[StateKeys.SELECTED_PLACES] = []
     updates[StateKeys.ITINERARY] = []
@@ -363,23 +248,7 @@ def modify_trip_requirements_node(state: TravelAgentState) -> dict:
     return updates
 
 
-# -----------------------------
-# 메인 노드 5: 사용자가 선택한 장소 저장
-# -----------------------------
 def select_places_node(state: TravelAgentState) -> dict:
-    """
-    장소 후보(mapped_places) 중 실제 일정 생성에 사용할 selected_places를 결정하는 노드입니다.
-
-    현재 1차 버전:
-    - 사용자가 이미 selected_places를 골라둔 경우: 그 값을 그대로 사용
-    - 아직 고르지 않은 경우: mapped_places 상위 3개를 임시 선택
-
-    추후 확장:
-    - 사용자 응답에서 place_id / 장소명 기반 선택 반영
-    - 카테고리 다양성 고려
-    - 필수 카테고리(카페/맛집 등) 균형 선택
-    """
-    # 이미 사용자 선택 결과가 있으면 그대로 사용
     existing_selected = state.get(StateKeys.SELECTED_PLACES, [])
     if existing_selected:
         return {StateKeys.SELECTED_PLACES: existing_selected}
@@ -388,9 +257,6 @@ def select_places_node(state: TravelAgentState) -> dict:
     if not mapped_places:
         return {StateKeys.SELECTED_PLACES: []}
 
-    # 1차 버전: 상위 3개만 임시 선택
     selected_places = mapped_places[:3]
-
     print("[DEBUG] selected_places =", selected_places)
-
     return {StateKeys.SELECTED_PLACES: selected_places}

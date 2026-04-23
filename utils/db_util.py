@@ -108,7 +108,7 @@ class OpenAIEmbedder():
     """
     def __init__(self, model: str = "text-embedding-3-small"):
         self.model = model
-        self.client = OpenAIEmbeddings(
+        self.embeddings = OpenAIEmbeddings(
             model=self.model,
             # batch_size를 생성자에서 지정할 수도 있습니다. (기본값 1024)
             chunk_size=1024
@@ -121,7 +121,7 @@ class OpenAIEmbedder():
         for i in range(0, len(texts), batch_size):
             batch = texts[i : i + batch_size]
             # self.client.embeddings.create 대신 self.client.embed_documents 사용
-            response = self.client.embed_documents(batch) 
+            response = self.embeddings.embed_documents(batch) 
             all_embeddings.extend(response)
             print(f"  임베딩 완료: {min(i + batch_size, len(texts))}/{len(texts)}")
             
