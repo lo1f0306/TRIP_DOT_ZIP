@@ -104,9 +104,17 @@ def _extract_styles(user_text: str) -> list[str]:
     }
 
     found_styles: list[str] = []
+    # 1. 고정 키워드 매칭
     for canonical, keywords in style_keywords.items():
         if any(keyword in user_text for keyword in keywords):
             found_styles.append(canonical)
+
+    # 2. (보완) "ㅇㅇ 하기", "ㅇㅇ 체험" 같은 패턴 추출
+    specific_pattern = re.findall(r'(\w+)\s*(?:하기|체험|하러|보고 싶)', user_text)
+    for word in specific_pattern:
+        if word not in found_styles:
+            found_styles.append(word)
+
     return found_styles
 
 
@@ -273,12 +281,14 @@ def _safe_json_loads(content: str) -> dict[str, Any]:
 
 
 def _normalize_style_values(values: list[Any]) -> list[str]:
-    # 스타일 값을 중복 없이 표준 표현으로 정리합니다.
+    """스타일 값을 표준 표현으로 변환하되, 사전에 없는 구체적 키워드(예: 서핑)는 보존합니다."""
     normalized: list[str] = []
     for value in values or []:
         if not value:
             continue
-        canonical = STYLE_ALIASES.get(str(value).strip(), str(value).strip())
+        raw = str(value).strip()
+        # 사전에 있으면 표준어로 변환, 없으면 사용자가 입력한 구체적 단어 그대로 사용
+        canonical = STYLE_ALIASES.get(raw, raw)
         if canonical not in normalized:
             normalized.append(canonical)
     return normalized
@@ -324,7 +334,8 @@ Return JSON only with this shape:
 }}
 
 Rules:
-- Keep values null if the user did not specify them.
+- styles: Extract specific experiential activities mentioned by the user. (e.g., If the user says "I want to go surfing", put "서핑" in styles, NOT just "액티비티")
+- Keep the user's specific vocabulary for styles if it's not in the standard list.
 - destination: Should be specific location (ex. '부산 해운대', '서울 강남') mentioned by user. Use city names if no specific location is mentioned.
 - constraints: List of other operating conditions not included in destination (ex. indoor, outdoor, quiet, budget, solo, couple, family, parents, kids, pet, 1박2일, 2박3일)
 - styles: experiential preferences (ex. 맛집, 카페, 전시, 쇼핑, 풍경, 산책, 데이트, 관광, 액티비티)
@@ -412,8 +423,16 @@ def _build_extract_updates(state: TravelAgentState, llm_result: dict[str, Any]) 
         updates[StateKeys.DESTINATION] = current_destination
 
     if styles:
-        updates[StateKeys.STYLES] = list(dict.fromkeys(current_styles + styles))
+        # LLM이 판단한 replace_styles 플래그에 따라 동작을 결정
+        if llm_result.get("replace_styles"):
+            # "카페 말고 맛집" 같은 경우: 기존 스타일(카페)을 버리고 새 스타일(맛집)로 교체
+            updates[StateKeys.STYLES] = styles
+        else:
+            # 일반적인 경우: 기존 스타일에 새로운 스타일을 누적해서 추가 (중복 제거)
+            current_styles = state.get(StateKeys.STYLES, [])
+            updates[StateKeys.STYLES] = list(dict.fromkeys(current_styles + styles))
     elif current_styles:
+        # 새로운 스타일 입력이 없으면 기존 상태를 유지
         updates[StateKeys.STYLES] = current_styles
 
     if constraints:
