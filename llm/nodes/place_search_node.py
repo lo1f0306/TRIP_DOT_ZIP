@@ -16,6 +16,12 @@ def place_search_node(state: TravelAgentState) -> dict:
     # 예: "부산 맛집, 카페 실내 위주"
     search_query = f"{destination} {styles} {constraints}".strip()
 
+    # 쿼리가 비어 있는 경우
+    if not search_query:
+        return {
+            StateKeys.MAPPED_PLACES: [],
+        }
+
     print(f"[DEBUG] place_search_node query: {search_query}")
 
     # 2. Self-Querying 검색 실행
