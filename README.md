@@ -333,118 +333,78 @@ src/
 > Vector DB 기반 유사도 검색 + 사용자 선택을 통해 장소를 확정한 뒤,
 > 일정을 생성하고 검증까지 수행하는 시스템**
 
+
 ---
 
 ## 13. 💬 동료 회고
 
+## 13. 💬 동료 회고
+
+<div>
+
+<!-- 김지윤 -->
+<table style="width:100%; border-collapse: collapse; border:1px solid #ddd;">
+<thead><tr style="background-color:#f2f2f2;"><th style="border:1px solid #ddd; padding:8px;">대상자</th><th style="border:1px solid #ddd; padding:8px;">작성자</th><th style="border:1px solid #ddd; padding:8px;">회고 내용</th></tr></thead>
+<tbody>
+<tr><td rowspan="4" style="text-align:center; border:1px solid #ddd;"><b>김지윤</b></td><td style="text-align:center; border:1px solid #ddd;">김이선</td><td style="border:1px solid #ddd;"></td></tr>
+<tr><td style="text-align:center; border:1px solid #ddd;">박은지</td><td style="border:1px solid #ddd;"></td></tr>
+<tr><td style="text-align:center; border:1px solid #ddd;">위희찬</td><td style="border:1px solid #ddd;"></td></tr>
+<tr><td style="text-align:center; border:1px solid #ddd;">홍지윤</td><td style="border:1px solid #ddd;"></td></tr>
+</tbody>
+</table>
+
 <br>
 
-<table>
-  <thead>
-    <tr>
-      <th>대상자</th>
-      <th>작성자</th>
-      <th>회고 내용</th>
-    </tr>
-  </thead>
-  <tbody>
-
-    <!-- 김지윤 -->
-    <tr>
-      <td rowspan="4"><b>김지윤</b></td>
-      <td>김이선</td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>박은지</td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>위희찬</td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>홍지윤</td>
-      <td></td>
-    </tr>
-
-    <!-- 김이선 -->
-    <tr>
-      <td rowspan="4"><b>김이선</b></td>
-      <td>김지윤</td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>박은지</td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>위희찬</td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>홍지윤</td>
-      <td></td>
-    </tr>
-
-    <!-- 박은지 -->
-    <tr>
-      <td rowspan="4"><b>박은지</b></td>
-      <td>김지윤</td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>김이선</td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>위희찬</td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>홍지윤</td>
-      <td></td>
-    </tr>
-
-    <!-- 위희찬 -->
-    <tr>
-      <td rowspan="4"><b>위희찬</b></td>
-      <td>김지윤</td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>김이선</td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>박은지</td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>홍지윤</td>
-      <td></td>
-    </tr>
-
-    <!-- 홍지윤 -->
-    <tr>
-      <td rowspan="4"><b>홍지윤</b></td>
-      <td>김지윤</td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>김이선</td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>박은지</td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>위희찬</td>
-      <td></td>
-    </tr>
-
-  </tbody>
+<!-- 김이선 -->
+<table style="width:100%; border-collapse: collapse; border:1px solid #ddd;">
+<thead><tr style="background-color:#f2f2f2;"><th style="border:1px solid #ddd; padding:8px;">대상자</th><th style="border:1px solid #ddd; padding:8px;">작성자</th><th style="border:1px solid #ddd; padding:8px;">회고 내용</th></tr></thead>
+<tbody>
+<tr><td rowspan="4" style="text-align:center; border:1px solid #ddd;"><b>김이선</b></td><td style="text-align:center; border:1px solid #ddd;">김지윤</td><td style="border:1px solid #ddd;"></td></tr>
+<tr><td style="text-align:center; border:1px solid #ddd;">박은지</td><td style="border:1px solid #ddd;"></td></tr>
+<tr><td style="text-align:center; border:1px solid #ddd;">위희찬</td><td style="border:1px solid #ddd;"></td></tr>
+<tr><td style="text-align:center; border:1px solid #ddd;">홍지윤</td><td style="border:1px solid #ddd;"></td></tr>
+</tbody>
 </table>
+
+<br>
+
+<!-- 박은지 -->
+<table style="width:100%; border-collapse: collapse; border:1px solid #ddd;">
+<thead><tr style="background-color:#f2f2f2;"><th style="border:1px solid #ddd; padding:8px;">대상자</th><th style="border:1px solid #ddd; padding:8px;">작성자</th><th style="border:1px solid #ddd; padding:8px;">회고 내용</th></tr></thead>
+<tbody>
+<tr><td rowspan="4" style="text-align:center; border:1px solid #ddd;"><b>박은지</b></td><td style="text-align:center; border:1px solid #ddd;">김지윤</td><td style="border:1px solid #ddd;"></td></tr>
+<tr><td style="text-align:center; border:1px solid #ddd;">김이선</td><td style="border:1px solid #ddd;"></td></tr>
+<tr><td style="text-align:center; border:1px solid #ddd;">위희찬</td><td style="border:1px solid #ddd;"></td></tr>
+<tr><td style="text-align:center; border:1px solid #ddd;">홍지윤</td><td style="border:1px solid #ddd;"></td></tr>
+</tbody>
+</table>
+
+<br>
+
+<!-- 위희찬 -->
+<table style="width:100%; border-collapse: collapse; border:1px solid #ddd;">
+<thead><tr style="background-color:#f2f2f2;"><th style="border:1px solid #ddd; padding:8px;">대상자</th><th style="border:1px solid #ddd; padding:8px;">작성자</th><th style="border:1px solid #ddd; padding:8px;">회고 내용</th></tr></thead>
+<tbody>
+<tr><td rowspan="4" style="text-align:center; border:1px solid #ddd;"><b>위희찬</b></td><td style="text-align:center; border:1px solid #ddd;">김지윤</td><td style="border:1px solid #ddd;"></td></tr>
+<tr><td style="text-align:center; border:1px solid #ddd;">김이선</td><td style="border:1px solid #ddd;"></td></tr>
+<tr><td style="text-align:center; border:1px solid #ddd;">박은지</td><td style="border:1px solid #ddd;"></td></tr>
+<tr><td style="text-align:center; border:1px solid #ddd;">홍지윤</td><td style="border:1px solid #ddd;"></td></tr>
+</tbody>
+</table>
+
+<br>
+
+<!-- 홍지윤 -->
+<table style="width:100%; border-collapse: collapse; border:1px solid #ddd;">
+<thead><tr style="background-color:#f2f2f2;"><th style="border:1px solid #ddd; padding:8px;">대상자</th><th style="border:1px solid #ddd; padding:8px;">작성자</th><th style="border:1px solid #ddd; padding:8px;">회고 내용</th></tr></thead>
+<tbody>
+<tr><td rowspan="4" style="text-align:center; border:1px solid #ddd;"><b>홍지윤</b></td><td style="text-align:center; border:1px solid #ddd;">김지윤</td><td style="border:1px solid #ddd;"></td></tr>
+<tr><td style="text-align:center; border:1px solid #ddd;">김이선</td><td style="border:1px solid #ddd;"></td></tr>
+<tr><td style="text-align:center; border:1px solid #ddd;">박은지</td><td style="border:1px solid #ddd;"></td></tr>
+<tr><td style="text-align:center; border:1px solid #ddd;">위희찬</td><td style="border:1px solid #ddd;"></td></tr>
+</tbody>
+</table>
+
+</div>
 
 ---
