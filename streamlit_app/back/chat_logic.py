@@ -159,16 +159,18 @@ def initialize_greeting() -> None:
         return
 
     # 버튼 마크업이 포함된 초기 인사 문구를 만들어 첫 메시지로 저장합니다.
-    greeting_raw = (
-        "안녕하세요! 저는 여행 추천을 도와드릴 트립닷집이에요.\n"
-        "어디로 여행을 가고 싶으신가요? [BUTTONS:국내 여행|해외 여행|아직 모르겠어요]"
-    )
+    # greeting_raw = (
+    #     "안녕하세요! 저는 여행 추천을 도와드릴 트립닷집이에요.\n"
+    #     # "어디로 여행을 가고 싶으신가요? [BUTTONS:국내 여행|해외 여행|아직 모르겠어요]"
+    # )
 
-    greeting_text, greeting_buttons = parse_buttons(greeting_raw)
+    # greeting_text, greeting_buttons = parse_buttons(greeting_raw)
+    greeting_text = "안녕하세요! 저는 여행 추천을 도와드릴 트립땃쥐예요.\n" \
+    "여행을 가실 장소와 여행을 가실 날짜를 알려주세요!"
     st.session_state.messages.append(
         {"role": "assistant", "content": greeting_text, "time": now_label()}
     )
-    st.session_state.quick_buttons = greeting_buttons
+    # st.session_state.quick_buttons = greeting_buttons
     st.session_state.initialized = True
 
 # def format_weather_from_state(state: dict) -> str:
