@@ -318,11 +318,8 @@ def process_user_input(user_text: str) -> None:
             st.session_state["itinerary"] = []  # 일정도 비워줌
 
         # 메시지뿐만 아니라 세션에 저장된 기존 상태값들을 함께 전달합니다.
-        reuse_itinerary = should_reuse_itinerary(user_text)
-        current_itinerary = st.session_state.get("itinerary", []) if reuse_itinerary else []
-
-        if not reuse_itinerary and st.session_state.get("itinerary"):
-            print("DEBUG: Non-schedule turn detected. Ignoring stale itinerary.")
+        # 일정은 후속 대화에서도 유지하고, 목적지가 바뀌는 경우에만 위 초기화 로직으로 비운다.
+        current_itinerary = st.session_state.get("itinerary", [])
 
         # UI 세션 상태와 대화 이력을 함께 묶어 그래프 입력으로 전달합니다.
         graph_input = {

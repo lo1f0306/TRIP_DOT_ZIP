@@ -251,6 +251,37 @@ def _extract_date_fields_current_year(user_text: str) -> dict[str, Any]:
     return result
 
 
+def _has_explicit_year(user_text: str) -> bool:
+    # 사용자가 연도를 직접 말한 경우만 현재 연도 보정을 건너뛴다.
+    return bool(re.search(r"(20\d{2})\s*년|(20\d{2})-\d{1,2}-\d{1,2}", user_text))
+
+
+def _coerce_current_year_for_implicit_date(user_text: str, travel_date: str | None) -> str | None:
+    # 연도를 말하지 않은 월/일 입력은 항상 현재 연도로 보정한다.
+    if not travel_date or _has_explicit_year(user_text):
+        return travel_date
+
+    match_month_day = re.search(r"(\d{1,2})\s*월\s*(\d{1,2})\s*일", user_text)
+    if not match_month_day:
+        return travel_date
+
+    month = int(match_month_day.group(1))
+    day = int(match_month_day.group(2))
+    return f"{CURRENT_YEAR:04d}-{month:02d}-{day:02d}"
+
+
+def _apply_implicit_year_correction(user_text: str, updates: dict[str, Any]) -> dict[str, Any]:
+    # LLM이 과거 연도를 넣어도 사용자 원문에 연도가 없으면 현재 연도로 교정한다.
+    corrected_date = _coerce_current_year_for_implicit_date(
+        user_text, updates.get(StateKeys.TRAVEL_DATE)
+    )
+    if corrected_date:
+        updates[StateKeys.TRAVEL_DATE] = corrected_date
+        updates[StateKeys.RAW_DATE_TEXT] = None
+        updates[StateKeys.RELATIVE_DAYS] = None
+    return updates
+
+
 def _normalize_messages(messages: list[Any]) -> list[dict[str, str]]:
     # LangGraph 메시지 객체와 dict 메시지를 동일한 구조로 맞춥니다.
     normalized: list[dict[str, str]] = []
@@ -405,7 +436,11 @@ def _fallback_extract_updates(state: TravelAgentState, user_text: str) -> dict[s
     return updates
 
 
-def _build_extract_updates(state: TravelAgentState, llm_result: dict[str, Any]) -> dict[str, Any]:
+def _build_extract_updates(
+    state: TravelAgentState,
+    llm_result: dict[str, Any],
+    user_text: str,
+) -> dict[str, Any]:
     # LLM 추출 결과를 현재 상태와 합쳐 LangGraph 업데이트 형식으로 변환합니다.
     current_destination = state.get(StateKeys.DESTINATION)
     current_styles = state.get(StateKeys.STYLES, [])
@@ -456,7 +491,8 @@ def _build_extract_updates(state: TravelAgentState, llm_result: dict[str, Any]) 
     if llm_result.get("start_time"):
         updates[StateKeys.START_TIME] = llm_result["start_time"]
 
-    return updates
+    # 메인 추출 경로에서도 연도 미언급 날짜는 현재 연도로 강제 보정한다.
+    return _apply_implicit_year_correction(user_text, updates)
 
 
 def extract_trip_requirements_node(state: TravelAgentState) -> dict:
@@ -480,7 +516,7 @@ def extract_trip_requirements_node(state: TravelAgentState) -> dict:
 
     try:
         llm_result = _call_trip_extractor_llm(messages, current_state, mode="extract")
-        updates = _build_extract_updates(state, llm_result)
+        updates = _build_extract_updates(state, llm_result, user_text)
 
         # --- LLM의 판단을 보완하는 로직 추가 ---
         new_dest = updates.get(StateKeys.DESTINATION)
@@ -515,10 +551,21 @@ def extract_trip_requirements_node(state: TravelAgentState) -> dict:
 def check_missing_info_node(state: TravelAgentState) -> dict:
     # 다음 단계 진행에 필요한 필수 슬롯이 비었는지 점검합니다.
     missing_slots = []
+    route = state.get(StateKeys.ROUTE)
 
     destination = state.get(StateKeys.DESTINATION)
     if not destination:
         missing_slots.append(StateKeys.DESTINATION)
+
+    if route == "weather":
+        # 날씨 조회는 날짜가 없으면 실제 판단이 어려우므로 필수 슬롯으로 본다.
+        has_any_date = bool(
+            state.get(StateKeys.TRAVEL_DATE)
+            or state.get(StateKeys.RAW_DATE_TEXT)
+            or state.get(StateKeys.RELATIVE_DAYS) is not None
+        )
+        if not has_any_date:
+            missing_slots.append(StateKeys.TRAVEL_DATE)
 
     print("[DEBUG] check_missing_info_node missing_slots =", missing_slots)
     return {StateKeys.MISSING_SLOTS: missing_slots}
@@ -530,6 +577,10 @@ def ask_user_for_missing_info_node(state: TravelAgentState) -> dict:
 
     if not destination:
         return {StateKeys.FINAL_RESPONSE: "어느 지역으로 여행 일정을 짜드릴까요?"}
+
+    if StateKeys.TRAVEL_DATE in missing_slots:
+        # 날씨 질문 맥락에서는 날짜를 다시 물어 다음 턴에 바로 조회할 수 있게 한다.
+        return {StateKeys.FINAL_RESPONSE: "여행 날짜를 알려주시면 그날 날씨를 바로 확인해드릴게요."}
 
     return {}
 
@@ -637,6 +688,9 @@ def modify_trip_requirements_node(state: TravelAgentState) -> dict:
             updates[StateKeys.RELATIVE_DAYS] = None
 
     # 6. 시작 시간 처리
+    # 수정 요청 경로에서도 날짜 보정 규칙을 동일하게 적용한다.
+    updates = _apply_implicit_year_correction(user_text, updates)
+
     if llm_result.get("start_time"):
         updates[StateKeys.START_TIME] = llm_result["start_time"]
     else:
