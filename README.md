@@ -149,19 +149,16 @@ B --> C[Intent Router]
 C --> D1[Trip Plan Flow]
 C --> D2[Weather Flow]
 C --> D3[Place Flow]
-C --> D4[Schedule Flow]
-C --> D5[Fallback Flow]
+C --> D4[Fallback Flow]
 
 D1 --> E1[LangGraph State Control]
 D2 --> E2[Weather Tool]
 D3 --> E3[Vector DB Retrieval]
-D4 --> E4[Schedule Tool]
 
 E1 --> F[Final Response]
 E2 --> F
 E3 --> F
-E4 --> F
-D5 --> F
+D4 --> F
 ```
 
 ---
@@ -210,8 +207,6 @@ Q -->|Yes| R[Final Response]
 Q -->|No| J
 ```
 
-👉 사용자와의 상호작용을 통해 점진적으로 결과를 확정하는 구조이다.
-
 ---
 
 ## 6. 🔀 기타 Flow
@@ -223,9 +218,6 @@ Trip Plan Flow 외에도 사용자 요청에 따라 아래와 같은 Flow가 동
 
 - **Place Flow**  
   → 일정 생성 없이 장소 추천만 수행 (Vector DB 기반 유사도 검색 활용)
-
-- **Schedule Flow**  
-  → 사용자가 선택한 장소 리스트를 기반으로 동선 및 시간표 생성
 
 - **Fallback Flow**  
   → 일반 대화 또는 지원하지 않는 요청에 대한 응답 처리
@@ -265,17 +257,19 @@ Trip Plan Flow 외에도 사용자 요청에 따라 아래와 같은 Flow가 동
 * 벡터 검색 결과에 다양한 조건을 반영하여 점수를 재계산
 
 반영 요소:
-- 벡터 검색 순위 (retrieval score)
-- 목적지 적합성
-- 사용자 질의 키워드
-- 선호 조건 (preferences)
-- 제약 조건 (constraints)
-- 날씨 기반 실내/실외 적합성
-- 장소 평점
+
+* 벡터 검색 순위 (retrieval score)
+* 목적지 적합성
+* 사용자 질의 키워드
+* 선호 조건 (preferences)
+* 제약 조건 (constraints)
+* 날씨 기반 실내/실외 적합성
+* 장소 평점
 
 💡 핵심 특징:
-- LLM을 사용하지 않고도 다양한 조건을 반영한 경량 rerank 구조
-- 빠른 응답 속도와 안정적인 결과 제공
+
+* LLM 없이 동작하는 경량 rerank 구조
+* 빠른 응답 속도와 안정적인 결과 제공
 
 ---
 
@@ -292,17 +286,49 @@ Vector DB 검색 → Rerank → 지역 검증 → Top-3 확정
 
 ---
 
-### 5️⃣ 일정 생성
+### 6️⃣ 일정 생성
 
+* 선택된 장소 기반 일정 생성
 * 이동 시간 고려
 * 동선 최적화
 
 ---
 
-### 6️⃣ Validation LLM
+### 7️⃣ Validation LLM
 
 * 일정 품질 검증
 * 이동 시간 / 흐름 체크
+
+---
+
+### 8️⃣ 사용자 페르소나 데이터 적재 (확장 기능)
+
+* Streamlit 실행 시 사용자 페르소나 입력 (예: 20대 여성)
+* 입력된 페르소나 정보를 DB에 저장
+
+👉 현재:
+
+* 사용자 특성 데이터 적재
+
+👉 향후:
+
+* 연령대 / 성별 기반 추천 반영 예정
+
+---
+
+### 9️⃣ 대화 기록 기반 세션 관리 (UI 기능)
+
+* 좌측 패널에서 이전 대화 기록 확인 가능
+* 특정 기록 클릭 시 해당 대화로 전환
+
+👉 기능:
+
+* 이전 대화 이어서 진행 가능
+* 멀티 세션 관리 지원
+
+👉 현재:
+
+* 최대 2개 대화 기록 저장
 
 ---
 
@@ -337,7 +363,9 @@ L --> M[결과 반환]
 ```
 
 👉 본 구조는 단순 키워드 검색이 아닌  
-**리뷰 기반 의미 유사도 검색을 통해 추천 정확도를 향상시키기 위해 설계되었다**
+**리뷰 기반 의미 유사도 검색 + 규칙 기반 재정렬을 통해 추천 정확도를 향상시키기 위해 설계되었다**
+
+→ 사용자 페르소나 데이터는 현재 적재 단계이며, 향후 추천 로직에 반영 예정
 
 ---
 
@@ -376,7 +404,7 @@ State는 크게 다음 6가지 영역으로 나뉜다:
 
 예시:
 - messages → 사용자 대화 기록
-- selected_places → 사용자가 선택한 장소 리스트
+- selected_places → 최종 선정된 장소 리스트
 
 👉 **LangGraph의 분기점 역할을 담당**
 
@@ -402,7 +430,7 @@ State는 크게 다음 6가지 영역으로 나뉜다:
 - `itinerary`: 생성된 일정  
 - `weather_data`: 날씨 API 결과  
 
-흐름: API → mapped_places → 사용자 선택 → selected_places → itinerary
+흐름: API → mapped_places → selected_places → itinerary
 
 ---
 
@@ -465,11 +493,14 @@ State는 크게 다음 6가지 영역으로 나뉜다:
 ### Vector DB + Rerank
 → 의미 기반 검색 + 규칙 기반 재정렬을 통해 추천 정확도 향상
 
-### 사용자 선택 방식
-→ 개인 취향 반영을 위한 핵심 구조
+### 자동 선정 방식
+→ Rerank와 조건 필터링을 통해 일관된 추천 결과를 제공
 
 ### Validation LLM
 → 일정 품질 자동 검증
+
+### 사용자 데이터 적재 (Persona DB)
+→ 향후 개인화 추천을 위한 사용자 특성 데이터 수집
 
 ---
 
@@ -562,7 +593,6 @@ TRIP_DOT_ZIP/
 **출력**
 
 * 장소 추천
-* 사용자 선택
 * 일정 생성
 * 검증 완료 결과
 
@@ -571,7 +601,7 @@ TRIP_DOT_ZIP/
 ## 🧠 한 줄 요약
 
 > **LangGraph 기반 LLM Agent가 사용자와 대화를 통해 여행 조건을 수집하고,  
-> **Vector DB 기반 의미 검색 + Rule-based Rerank + 자동 필터링을 통해  
+> Vector DB 기반 의미 검색 + Rule-based Rerank + 자동 필터링을 통해  
 > 최적의 장소를 선정하고 일정 생성까지 수행하는 여행 추천 시스템**
 
 ---
