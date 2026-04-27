@@ -19,7 +19,8 @@
 10. [⚙️ 설계 선택 이유](#10--설계-선택-이유)
 11. [📁 프로젝트 구조](#11--프로젝트-구조)
 12. [🎬 서비스 시나리오](#12--서비스-시나리오)
-13. [💬 동료 회고](#13--동료-회고)
+13. [🔮 한계 및 향후 개선 방향](#13--한계-및-향후-개선-방향)
+14. [💬 동료 회고](#14--동료-회고)
 
 ---
 
@@ -454,7 +455,7 @@ State는 크게 다음 6가지 영역으로 나뉜다:
 - `itinerary`: 생성된 일정  
 - `weather_data`: 날씨 API 결과  
 
-흐름: API → mapped_places → selected_places → itinerary
+흐름: API → mapped_places → Rerank → filtering → selected_places → itinerary
 
 ---
 
@@ -517,7 +518,7 @@ State는 크게 다음 6가지 영역으로 나뉜다:
 ### Vector DB + Rerank
 → 의미 기반 검색 + 규칙 기반 재정렬을 통해 추천 정확도 향상
 
-### 자동 선정 방식
+### 자동 필터링 및 선정
 → Rerank와 조건 필터링을 통해 일관된 추천 결과를 제공
 
 ### Validation LLM
@@ -571,17 +572,17 @@ TRIP_DOT_ZIP/
 │
 ├── utils/                          # 공통 유틸리티
 │   ├── db_util.py                  # Vector DB 적재 파이프라인
-│   ├── db_retrieval.py             # Chroma 기반 유사도 검색
+│   ├── db_retrieval.py             # Chroma 기반 유사도 검색 및 Rule-based Rerank
 │   ├── map_util.py                 # 지도 관련 유틸 함수
 │   ├── common_util.py              # 공통 유틸 함수
 │   └── custom_exception.py         # 커스텀 예외 처리
 │
 ├── middlewares/                    # 입력 전처리 및 안전성/요약 미들웨어
 │   ├── pipeline.py                 # 미들웨어 실행 파이프라인
-│   ├── safety_mw.py                # 안전성 검사 미들웨어
+│   ├── safety_mw.py                # 욕설/안전성 검사 미들웨어
 │   ├── summary_mw.py               # 대화 요약 미들웨어
+│   ├── normalizer.py               # 개인정보 마스킹 및 입력 정규화
 │   ├── intent_mw.py                # 의도 관련 미들웨어
-│   ├── normalizer.py               # 입력 정규화
 │   └── registry.py                 # 미들웨어 등록 관리
 │
 ├── streamlit_app/                  # Streamlit 기반 사용자 인터페이스
@@ -599,7 +600,9 @@ TRIP_DOT_ZIP/
 │   ├── tripdotzip_guide_mouse.png
 │   └── tripdotzip_mouse_icon.png
 │
-├── data/                           # Vector DB 및 데이터 저장 경로
+├── data/                           # 데이터 및 Vector DB 저장 경로
+│   ├── preprocessed_chunks_sample.json   # 전처리 완료 문서
+│   ├── travel_itinerary.json             # 전처리 전 문서 (Google Place API 반환값)
 │   └── chroma/
 │
 ├── run_graph_test.py               # 단일 턴 LangGraph 테스트
@@ -617,6 +620,15 @@ TRIP_DOT_ZIP/
 
 > “부산 당일치기, 실내 위주로 가고 싶어”
 
+**처리 흐름**
+
+1. 사용자 요구사항 추출  
+2. 날씨 조회  
+3. 장소 후보 검색  
+4. Rerank 및 지역/조건 필터링  
+5. Top-3 자동 선정  
+6. 일정 생성 및 검증
+
 **출력**
 
 * 장소 추천
@@ -633,7 +645,16 @@ TRIP_DOT_ZIP/
 
 ---
 
-## 13. 💬 동료 회고
+## 13. 🔮 한계 및 향후 개선 방향
+
+- 현재 사용자 페르소나 데이터는 적재 단계이며, 추천 로직에는 직접 반영되지 않음
+- 향후 연령대 / 성별 기반 개인화 추천 기능을 추가할 예정
+- 사용자 행동 이력 및 대화 기록을 반영한 추천 고도화 예정
+- 실시간 운영시간 및 지도 기반 동선 최적화 기능을 추가할 예정
+
+---
+
+## 14. 💬 동료 회고
 
 <div>
 
@@ -642,13 +663,13 @@ TRIP_DOT_ZIP/
 <thead><tr style="background-color:#f2f2f2;"><th style="border:1px solid #ddd; padding:8px;">대상자</th><th style="border:1px solid #ddd; padding:8px;">작성자</th><th style="border:1px solid #ddd; padding:8px;">회고 내용</th></tr></thead>
 <tbody>
 <tr><td rowspan="4" style="text-align:center; border:1px solid #ddd;"><b>김지윤</b></td><td style="text-align:center; border:1px solid #ddd;">김이선</td><td style="border:1px solid #ddd;">이번 프로젝트의 주제를 제안하여 방향성을 설정하는 데 중요한 역할을 해주셨습니다. 또한 팀원들의 컨디션을 세심하게 살피며, 프로젝트 기간 동안 안정적으로 참여할 수 있도록 배려해 주셨습니다. 
-
 코드를 작성하다 보면 각자 맡은 파트에 집중하느라 전체 흐름을 놓치는 경우가 있었는데, 그럴 때마다 전체 구조를 다시 짚어주시고 보완해야 할 부분을 명확히 안내해 주셔서 프로젝트 완성도를 높이는 데 큰 도움이 되었습니다. 
-
-더불어 회의마다 프로젝트 동작 방식에 대해 구체적인 아이디어를 제시하며, 어떤 기능을 어떻게 활용하면 좋을지 방향을 제안해 주셨고, 이를 통해 수업 시간에 배운 다양한 개념들을 실제 프로젝트에 효과적으로 적용할 수 있었습니다. </td></tr>
+  더불어 회의마다 프로젝트 동작 방식에 대해 구체적인 아이디어를 제시하며, 어떤 기능을 어떻게 활용하면 좋을지 방향을 제안해 주셨고, 이를 통해 수업 시간에 배운 다양한 개념들을 실제 프로젝트에 효과적으로 적용할 수 있었습니다. </td></tr>
 <tr><td style="text-align:center; border:1px solid #ddd;">박은지</td><td style="border:1px solid #ddd;">단순히 일정을 관리하는 조장을 넘어, 프로젝트의 명확한 방향성을 설정하고 팀이 나아갈 길을 제시해 주신 덕분에 길을 잃지 않고 완주할 수 있었습니다. 프로젝트의 큰 그림을 그리는 LangGraph 기반 LLM 아키텍처 설계부터 팀 운영까지, 지윤 님 덕분에 프로젝트가 흔들림 없이 진행될 수 있었습니다. 기술적 난도가 높은 아키텍처를 명확하게 정의해 주신 덕분에 팀원들이 각자의 역할에 집중할 수 있는 든든한 가이드라인이 되었습니다. 팀의 구심점 역할을 완벽하게 수행해 주셔서 감사합니다.</td></tr>
-<tr><td style="text-align:center; border:1px solid #ddd;">위희찬</td><td style="border:1px solid #ddd;"></td></tr>
-<tr><td style="text-align:center; border:1px solid #ddd;">홍지윤</td><td style="border:1px solid #ddd;"></td></tr>
+<tr><td style="text-align:center; border:1px solid #ddd;">위희찬</td><td style="border:1px solid #ddd;">프로젝트 초반부터 주제와 방향성을 제시해 주시며 팀이 흔들리지 않고 나아갈 수 있도록 중심을 잡아 주신 점이 정말 인상적이었습니다. 특히 팀원들이 각자 맡은 파트에 집중하다 보면 전체 흐름을 놓칠 수 있었는데, 그럴 때마다 프로젝트의 큰 구조와 핵심 목표를 다시 짚어 주셔서 모두가 같은 방향을 바라보며 작업할 수 있었습니다. 또한 회의마다 프로젝트 동작 방식과 기능 활용 방향에 대해 구체적인 아이디어를 제안해 주시고, 수업 시간에 배운 개념들을 실제 프로젝트에 어떻게 녹여낼지 함께 고민해 주신 덕분에 결과물의 완성도가 한층 높아질 수 있었습니다. 단순히 일정이나 진행 상황만 관리한 것이 아니라 팀원들의 컨디션과 협업 흐름까지 세심하게 살피며 팀이 안정적으로 프로젝트를 이어갈 수 있도록 도와주신 점도 큰 힘이 되었습니다.</td></tr>
+<tr><td style="text-align:center; border:1px solid #ddd;">홍지윤</td><td style="border:1px solid #ddd;">프로젝트의 기획부터 개발에 이르기까지 전체적인 플로우를 잡는 역할을 진행해주셨습니다. 
+그리고 프로젝트의 핵심이 되는 LangGraph의 기능을 맡아, 주요 플로우 및 분기처리에 끝까지 애를 써 주셨습니다. 
+그리고 validation에서 rerank 기능을 추가해서 데이터 정합성을 파악하는데 추가적으로 기여했습니다.</td></tr>
 </tbody>
 </table>
 
@@ -660,8 +681,11 @@ TRIP_DOT_ZIP/
 <tbody>
 <tr><td rowspan="4" style="text-align:center; border:1px solid #ddd;"><b>김이선</b></td><td style="text-align:center; border:1px solid #ddd;">김지윤</td><td style="border:1px solid #ddd;">middleware 설계 및 구현을 담당하며 프로젝트에 필요한 다양한 middleware를 안정적으로 구현해주었습니다. 맡은 역할을 책임감 있게 수행했을 뿐만 아니라, 매번 기대 이상의 결과물을 만들어내며 프로젝트 완성도 향상에 크게 기여했습니다. 또한 Streamlit 연동을 담당해 front와 back을 분리하고 파일 구조를 깔끔하게 정리해주었으며, 다양한 테스트를 통해 오류 발생 지점을 꼼꼼히 확인해주었습니다. 덕분에 전체 시스템을 더 안정적이고 탄탄하게 완성할 수 있었습니다.</td></tr>
 <tr><td style="text-align:center; border:1px solid #ddd;">박은지</td><td style="border:1px solid #ddd;">Middleware 및 Streamlit 연동이라는 기술적인 과업을 훌륭히 수행하시면서, 팀의 결과물을 멋지게 시각화한 PPT 제작까지 도맡아 주신 점 깊이 감사드립니다. 시스템 간의 유기적인 연결을 구현함과 동시에, 우리 팀의 노력이 담긴 성과를 가장 매력적인 결과물로 시각화해 주셨습니다. 기술과 감각을 겸비한 이선 님 덕분에 프로젝트의 완성도가 완벽하게 마무리될 수 있었습니다.</td></tr>
-<tr><td style="text-align:center; border:1px solid #ddd;">위희찬</td><td style="border:1px solid #ddd;"></td></tr>
-<tr><td style="text-align:center; border:1px solid #ddd;">홍지윤</td><td style="border:1px solid #ddd;"></td></tr>
+<tr><td style="text-align:center; border:1px solid #ddd;">위희찬</td><td style="border:1px solid #ddd;">프로젝트에서 middleware 설계와 구현, 그리고 Streamlit 연동까지 폭넓게 담당하시며 시스템의 안정성을 높여 주셨습니다.구성에 필요한 다양한 middleware를 책임감 있게 구현하고, front와 back 구조를 분리해 파일 구조까지 깔끔하게 정리해 주신 덕분에 팀원들이 훨씬 더 효율적으로 협업할 수 있었습니다. 또한 여러 테스트를 통해 오류가 발생하는 지점을 세심하게 점검하고 수정해 주셔서 프로젝트가 보다 탄탄하고 안정적인 형태로 완성될 수 있었습니다. 여기에 그치지 않고 발표 자료 제작에도 적극적으로 참여하여 기술적인 내용을 사용자와 청중이 이해하기 쉬운 흐름으로 시각화해 주신 점도 큰 도움이 되었습니다.</td></tr>
+<tr><td style="text-align:center; border:1px solid #ddd;">홍지윤</td><td style="border:1px solid #ddd;">프로젝트에서 데이터의 전처리와 출력을 담당하는 Middleware를 맡아, 구현하기 어렵고 처리에 대한 많은 내용을 처리하고 
+다른 노드나 서비스와 연결되는 소스를 담당해주셨습니다.
+또, Weather Node를 맡아, 사용자가 입력하는 자연어를 일정한 형식으로 적용하는 등 함수 처리를 다양하게 만들어주셨습니다.
+다양하고 프로젝트에 적용하기 타당한 아이디어로 프로젝트의 새로운 기능을 확장하는데 기여했고, 회의에서 결정된 내용에 대해 가장 빠르게 소스에 적용하고, 꾸준히 단위 테스트와 통합 테스트를 진행해서 오류들을 수정할 수 있도록 진행했습니다.</td></tr>
 </tbody>
 </table>
 
@@ -673,12 +697,12 @@ TRIP_DOT_ZIP/
 <tbody>
 <tr><td rowspan="4" style="text-align:center; border:1px solid #ddd;"><b>박은지</b></td><td style="text-align:center; border:1px solid #ddd;">김지윤</td><td style="border:1px solid #ddd;">프로젝트 초반에는 스케줄 툴을 탄탄하게 구현해 일정 생성 기능의 기반을 마련해주었습니다. 또한 LangGraph의 전체 그래프 뼈대와 공통 State, 초기 분기 Router를 구현하며 시스템의 핵심 구조를 안정적으로 잡아주었습니다. 이후에는 RAG 기반 retrieval 유사도 검색을 통해 사용자의 요구 조건에 맞는 장소를 효과적으로 추출할 수 있도록 구현을 진행해주었습니다. 프로젝트 후반에는 다양한 에러 상황에 대해 적극적으로 코드를 수정하고 대응하며, 팀이 목표한 결과물을 완성하는 데 크게 기여해주었습니다.</td></tr>
 <tr><td style="text-align:center; border:1px solid #ddd;">김이선</td><td style="border:1px solid #ddd;">회의마다 다양한 아이디어를 제시하며 프로젝트의 방향성을 확장해 주셨고, 어플리케이션에서 발생하는 여러 버그를 적극적으로 해결해 주셨습니다. 
-
 특히 스케줄 기능을 중심으로 담당하시며 Google Place Tool을 다양한 방식으로 활용하여, 보다 정교하고 발전된 스케줄 로직을 완성하는 데 큰 기여를 하셨습니다. 또한 회의에서 논의된 기능뿐만 아니라 추가적으로 있으면 좋을 기능들을 선제적으로 제안하고 구현하여, 프로젝트의 완성도를 한층 높여주셨습니다. 
-
 전체 그래프 구조와 intent 분기 로직을 맡아 책임감 있게 수행하며, 맡은 바에 최선을 다해 최상의 결과를 이끌어내셨습니다. </td></tr>
-<tr><td style="text-align:center; border:1px solid #ddd;">위희찬</td><td style="border:1px solid #ddd;"></td></tr>
-<tr><td style="text-align:center; border:1px solid #ddd;">홍지윤</td><td style="border:1px solid #ddd;"></td></tr>
+<tr><td style="text-align:center; border:1px solid #ddd;">위희찬</td><td style="border:1px solid #ddd;">프로젝트 초반부터 스케줄 기능의 기반을 탄탄하게 마련해 주시고, LangGraph의 전체 그래프 구조와 State, Intent Router 같은 핵심 로직을 안정적으로 설계해 주신 점이 정말 인상적이었습니다. 특히 사용자의 요청 조건에 맞는 장소를 더 정확하게 추천할 수 있도록 RAG 기반 retrieval과 Google Place Tool 활용 방안을 함께 발전시켜 주시며, 프로젝트의 기술적 완성도를 크게 높여 주셨습니다. 또한 회의마다 다양한 아이디어를 적극적으로 제안하고, 구현 과정에서 발생하는 여러 오류와 문제 상황에도 빠르게 대응해 주셔서 팀이 방향을 잃지 않고 끝까지 결과물을 완성할 수 있었습니다. </td></tr>
+<tr><td style="text-align:center; border:1px solid #ddd;">홍지윤</td><td style="border:1px solid #ddd;">프로젝트의 기획에서 LLM 구조에 대한 다양한 아이디어를 제공해주셨습니다. 프로젝트 초반부에는 스케줄을 작성 및 출력해주는 스케줄 노드를, 후반부에는 
+LLM에 대한 공동 작업을 맡아 
+본인 업무에 로열티를 갖고 다른 영역에도 지속적으로 적용을 해주셨습니다. 통합 테스트에도 지속적으로 참여하시며 LLM을 적용 후 발생하는 오류를 개선하는데 크게 노력하셨습니다.</td></tr>
 </tbody>
 </table>
 
@@ -690,12 +714,11 @@ TRIP_DOT_ZIP/
 <tbody>
 <tr><td rowspan="4" style="text-align:center; border:1px solid #ddd;"><b>위희찬</b></td><td style="text-align:center; border:1px solid #ddd;">김지윤</td><td style="border:1px solid #ddd;">Streamlit 화면 구현을 도맡아 팀이 기획한 채팅 화면을 높은 완성도로 구현해주었습니다. 특히 채팅 응답 로딩 시간 동안 사용자가 지루함을 느끼지 않도록 땃쥐 캐릭터 GIF를 제작해 적용하는 등 사용자 경험까지 세심하게 고려해주었습니다. 또한 사용자의 페르소나 정보를 입력받고 DB에 적재하는 기능까지 깔끔하게 구현하며, 프로젝트의 완성도를 한 단계 높이는 데 크게 기여해주었습니다.</td></tr>
 <tr><td style="text-align:center; border:1px solid #ddd;">김이선</td><td style="border:1px solid #ddd;">스트림릿 구현을 담당하여, 다른 팀원이 전달한 디자인을 충실히 반영함으로써 팀원들의 UI 구현에 대한 부담을 크게 줄여주셨습니다. 
-
 또한 프로젝트의 마스코트인 땃쥐 캐릭터에 생동감을 더해 사용자에게 친근한 경험을 제공하고, 지루함을 줄이는 동시에 라포 형성에도 중요한 역할을 하셨습니다. 그 결과, 사용자들이 어플리케이션을 보다 즐겁게 사용할 수 있는 환경을 조성하였습니다. 
-
 더불어 스트림릿의 백엔드까지 함께 구현하여 사용자 기능 활용이 원활하게 이루어지도록 했으며, 다양한 페르소나 데이터를 축적할 수 있는 기반도 마련해 주셨습니다. 이를 통해 스트림릿의 다양한 기능을 효과적으로 활용할 수 있도록 기여하셨습니다.</td></tr>
 <tr><td style="text-align:center; border:1px solid #ddd;">박은지</td><td style="border:1px solid #ddd;">기술 아키텍처 설계와 에이전트 로직 구현이라는 막중한 임무를 수행하시면서, Streamlit UI/UX 디자인까지 감각적으로 완성해 주신 점이 정말 인상 깊었습니다. 자칫 딱딱할 수 있는 기술 프로젝트를 사용자가 체감하기 좋은 매력적인 서비스로 탈바꿈시켜 주셨습니다. 백엔드 로직부터 프론트엔드 디자인까지 아우르는 희찬 님의 폭넓은 역량 덕분에 프로젝트의 퀄리티가 수직 상승했습니다. 프로젝트의 뼈대를 세우고 근육을 붙여주신 최고의 기술 리더였습니다.</td></tr>
-<tr><td style="text-align:center; border:1px solid #ddd;">홍지윤</td><td style="border:1px solid #ddd;"></td></tr>
+<tr><td style="text-align:center; border:1px solid #ddd;">홍지윤</td><td style="border:1px solid #ddd;">프로젝트 기획에서 적극적으로 방향성을 확정하는데 도움을 주었고, 초반부터 화면단을 맡아 사용자와 LLM이 응답이 지루하지 않도록 다양하게 고안하고 반영해주셨습니다. 
+프로젝트의 통테를 지속적으로 진행해서 발생하는 오류를 끝까지 잡아 프로그램의 안정성과 퀄리티를 높여주셨습니다.</td></tr>
 </tbody>
 </table>
 
@@ -707,12 +730,10 @@ TRIP_DOT_ZIP/
 <tbody>
 <tr><td rowspan="4" style="text-align:center; border:1px solid #ddd;"><b>홍지윤</b></td><td style="text-align:center; border:1px solid #ddd;">김지윤</td><td style="border:1px solid #ddd;">프로젝트 초반 Google Maps API를 활용해 장소 호출 Tool을 구현하며, 장소 추천 기능의 초기 기반을 안정적으로 마련해주었습니다. 또한 API를 통해 불러온 장소 데이터를 벡터 DB에 적재하여, 추후 Retrieval 기반 유사도 검색이 가능하도록 구현해주었습니다. 회의 과정에서는 다양한 의견이 오갈 때 적절한 방향을 선택할 수 있도록 중간 다리 역할을 해주었고, 팀의 중심을 잘 잡아주며 프로젝트가 원활하게 진행되는 데 크게 기여해주었습니다.</td></tr>
 <tr><td style="text-align:center; border:1px solid #ddd;">김이선</td><td style="border:1px solid #ddd;">프로젝트를 진행하는 동안, 맡은 파트의 난이도와 업무량이 많음에도 불구하고 이를 성실히 수행하셨으며, 자신의 역할에 국한되지 않고 전반적인 영역에서 발생하는 다양한 문제를 적극적으로 해결해 주셨습니다. 특히 특정 파트의 문제가 아닌 전체 흐름에서 발생하는 오류에 대해서는 LangSmith를 활용해 원인을 빠르게 파악하고 공유해 주셔서 프로젝트 진행에 큰 도움이 되었습니다.
-
 또한 회의 중 논의가 주제에서 벗어날 때마다 자연스럽게 방향을 정리하고 중심을 잡아주셔서, 팀이 보다 명확한 목표를 바탕으로 효율적인 의사결정을 할 수 있도록 이끌어 주셨습니다. 이러한 기여는 회의의 질을 높였고, 결과적으로 프로젝트의 완성도를 크게 향상시키는 데 중요한 역할을 했습니다.
-
 아울러 프로젝트 진행 중 팀원들이 어려움을 겪고 방향을 잃을 때마다, 문제를 차분하게 정리하고 해결 방향을 함께 모색할 수 있도록 주도하여 팀이 다시 안정적으로 나아갈 수 있도록 도와주셨습니다. </td></tr>
 <tr><td style="text-align:center; border:1px solid #ddd;">박은지</td><td style="border:1px solid #ddd;">탄탄한 AI 및 데이터 설계로 프로젝트의 기초를 다져주신 것은 물론, 팀을 대표해 발표까지 완벽하게 소화해 주셔서 정말 감사드립니다. 복잡한 기술적 구조와 상태 관리 로직을 누구나 이해하기 쉽게 전달해 주신 덕분에 우리 프로젝트의 가치가 더욱 빛날 수 있었습니다. 설계부터 최종 전달까지 책임감 있게 임해주신 덕분에 팀 전체가 큰 자부심을 느꼈습니다.</td></tr>
-<tr><td style="text-align:center; border:1px solid #ddd;">위희찬</td><td style="border:1px solid #ddd;"></td></tr>
+<tr><td style="text-align:center; border:1px solid #ddd;">위희찬</td><td style="border:1px solid #ddd;">프로젝트 전반에서 기술적 중심을 단단히 잡아 주시고, 팀이 나아가야 할 방향을 꾸준히 정리해 주셨습니다. 특히 Google Maps API 기반 장소 호출 Tool 구현과 벡터 DB 적재, Retrieval 기반 검색 구조 마련처럼 프로젝트의 핵심이 되는 기반을 안정적으로 구축해 주셔서 이후 기능들이 훨씬 수월하게 확장될 수 있었습니다. 또한 단순히 맡은 기능만 수행하는 데 그치지 않고, 프로젝트를 진행하며 발생하는 다양한 오류와 문제 상황을 빠르게 파악하고 해결 방향을 함께 제시해 주셔서 팀 전체에 큰 도움이 되었습니다. 회의 중에도 여러 의견을 잘 정리해 중심을 잡아 주셨고, 팀원들이 어려움을 겪을 때마다 차분하게 방향을 제시해 주셔서 프로젝트가 끝까지 안정적으로 완성될 수 있었다고 생각합니다. 더불어 팀을 대표해 발표까지 책임감 있게 이끌어 주셨습니다</td></tr>
 </tbody>
 </table>
 
